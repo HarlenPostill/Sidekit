@@ -4,6 +4,8 @@ plugins {
 }
 
 android {
+    ndkVersion = "27.1.12297006"
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
     namespace = "hrln.interactive.sidekit"
     compileSdk {
         version = release(37)
@@ -13,8 +15,8 @@ android {
         applicationId = "hrln.interactive.sidekit"
         minSdk = 31
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
