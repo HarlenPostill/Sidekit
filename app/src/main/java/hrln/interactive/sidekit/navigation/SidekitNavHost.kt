@@ -75,6 +75,7 @@ fun SidekitNavHost(navController: NavHostController = rememberNavController(), h
                 onOpenPorted = { app -> if (openPorted(context, app) != null) navController.navigate(SubApp.Sideport.route) { launchSingleTop = true } },
             )
         }
+        composable(SubApp.Emulator.route) { hrln.interactive.sidekit.apps.emulator.EmulatorLibrary { navController.popBackStack() } }
         // Core SideKit apps
         sidemessageGraph(navController)
         sidenotesGraph(navController)

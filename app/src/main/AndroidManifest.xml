@@ -87,6 +87,7 @@
             resumeWhilePausing: as in AOSP Launcher3, home resumes while the app it replaces is
             still pausing, so pressing Home feels immediate.
         -->
+        <activity android:name=".apps.emulator.EmulatorActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
