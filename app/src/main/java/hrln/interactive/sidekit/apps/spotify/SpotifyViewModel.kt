@@ -775,6 +775,13 @@ class SpotifyViewModel(
 
             "ended" -> if (matchesCurrent(event)) onPlaybackEnded()
 
+            "stopped" -> if (matchesCurrent(event)) {
+                // Stop from the notification or lock screen: clear both the UI and the queue so
+                // reopening Sidetracks cannot restore the track that was stopped.
+                session?.playback?.updateState(false, 0L)
+                applyQueue(queue.stop(), positionMs = 0L, playing = false)
+            }
+
             "unavailable" -> if (matchesCurrent(event)) {
                 _state.update { it.copy(isPlaying = false, notice = "This track isn't available") }
             }

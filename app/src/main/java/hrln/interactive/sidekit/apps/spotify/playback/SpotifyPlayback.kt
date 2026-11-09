@@ -69,6 +69,9 @@ class SpotifyPlayback(
     var fallbackNext: (() -> Unit)? = null
     var fallbackPrevious: (() -> Unit)? = null
 
+    /** Lets the process owner clear queue state whenever playback is stopped from any control. */
+    var onStopped: (() -> Unit)? = null
+
     private var mediaSession: MediaSession? = null
     private var artJob: Job? = null
     private var lastSessionUpdate = 0L
@@ -206,6 +209,7 @@ class SpotifyPlayback(
         current = null
         notificationArt = null
         artJob?.cancel()
+        onStopped?.invoke()
         publish()
     }
 

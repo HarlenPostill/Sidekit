@@ -65,6 +65,8 @@ class SpotifyPlaybackTest {
         val gateway = FakeGateway()
         val registry = MediaSessionRegistry()
         val playback = SpotifyPlayback(gateway, CoroutineScope(StandardTestDispatcher(testScheduler)), registry)
+        var stopped = false
+        playback.onStopped = { stopped = true }
         playback.start("spotify:track:a", 0L)
 
         playback.stop()
@@ -72,6 +74,7 @@ class SpotifyPlaybackTest {
         assertFalse(playback.isActive)
         assertNull(registry.active)
         assertTrue(gateway.stopped)
+        assertTrue(stopped)
     }
 
     @Test fun `requestNext prefers the attached UI owner`() {

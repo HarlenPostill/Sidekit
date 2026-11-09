@@ -71,6 +71,8 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
   screen off. Notification shows artwork, title, artist, and previous/play-pause/next. When the
   ViewModel is gone, next/previous fall back to advancing the process-wide queue directly.
   Tapping the notification opens Sidetracks directly at Now Playing rather than the launcher.
+  A native `stopped` event clears Now Playing and the queue so notification/lock-screen stop
+  cannot leave stale UI or restore the stopped track.
 - Sidetracks and local Music pause each other through `MediaSessions`; Sidetracks takes and
   abandons `AUDIOFOCUS_GAIN`, including transient loss and headphone changes.
 - OAuth tokens rotate into an existing native session. Sign-out stops the decoder synchronously,
@@ -100,8 +102,6 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 3. **Playlist owner names.** Followed playlists show the owner's Spotify username.
 4. **Hard read limits.** Collection 500, playlist tracks 100, show episodes 50, artist albums 50,
    search 20. These truncate silently today.
-5. **Native `stopped` event is unhandled**, so stopping from the notification can leave a stale
-   track on screen.
 
 ---
 
@@ -110,11 +110,9 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 Close these before proposing the branch for merge. They are correctness/contract issues, not
 parity work.
 
-1. **Handle native `stopped`.** Clear or resync current state so notification stop cannot leave
-   stale UI.
-2. **Queue/history persistence.** Persist across process death using the existing atomic-file
+1. **Queue/history persistence.** Persist across process death using the existing atomic-file
    convention, or state the limitation explicitly in the PR.
-3. **Service/audio-focus instrumentation.** Cover the foreground service, media session,
+2. **Service/audio-focus instrumentation.** Cover the foreground service, media session,
    audio-focus hand-off, and headphone unplug on Android. Current tests cover JVM seams and
    screenshots only.
 

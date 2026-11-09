@@ -64,6 +64,7 @@ class SpotifySession(
             // own callbacks while it exists and clears them in onCleared().
             player.fallbackNext = { skipNext() }
             player.fallbackPrevious = { skipPrevious() }
+            player.onStopped = { queue.stop() }
         }
     }
 
@@ -130,6 +131,7 @@ class SpotifySession(
     }
 
     fun stopPlayback() {
+        queue.stop()
         playbackScope.launch { runCatching { playback.stop() } }
     }
 
