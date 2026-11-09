@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -268,6 +269,19 @@ fun TerminalRow(label: String, secondary: String? = null, onClick: (() -> Unit)?
         colour = hrln.interactive.sidekit.design.components.ItemColour.Secondary,
         onClick = onClick
     )
+}
+
+/**
+ * Loads the next page when the footer enters composition. Lazy lists only compose visible rows
+ * (plus a small prefetch window), so this keeps both network and rendering work proportional to
+ * what the user is actually looking at.
+ */
+@Composable
+fun PagingFooter(loading: Boolean, onLoadMore: () -> Unit) {
+    LaunchedEffect(loading) {
+        if (!loading) onLoadMore()
+    }
+    EmptyMessage(if (loading) "Loading more…" else "More", null)
 }
 
 fun withNotice(notice: String?, onDismiss: () -> Unit, actions: List<SideAction>): List<SideAction> = if (notice == null) {

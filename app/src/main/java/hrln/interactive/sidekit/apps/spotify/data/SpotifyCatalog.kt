@@ -1,11 +1,13 @@
 package hrln.interactive.sidekit.apps.spotify.data
 
 import hrln.interactive.sidekit.apps.spotify.LibraryFilter
+import hrln.interactive.sidekit.apps.spotify.SPOTIFY_PAGE_SIZE
 import hrln.interactive.sidekit.apps.spotify.SearchScope
 import hrln.interactive.sidekit.apps.spotify.SpotifyAlbum
 import hrln.interactive.sidekit.apps.spotify.SpotifyArtist
 import hrln.interactive.sidekit.apps.spotify.SpotifyCollection
 import hrln.interactive.sidekit.apps.spotify.SpotifyCollectionType
+import hrln.interactive.sidekit.apps.spotify.SpotifyPage
 import hrln.interactive.sidekit.apps.spotify.SpotifySearchResults
 import hrln.interactive.sidekit.apps.spotify.SpotifyTrack
 
@@ -15,12 +17,38 @@ import hrln.interactive.sidekit.apps.spotify.SpotifyTrack
  */
 interface SpotifyCatalog {
     suspend fun recentlyPlayed(): List<SpotifyTrack>
-    suspend fun library(filter: LibraryFilter): List<Any>
-    suspend fun collection(type: SpotifyCollectionType, id: String): SpotifyCollection?
+    suspend fun library(
+        filter: LibraryFilter,
+        offset: Int = 0,
+        limit: Int = SPOTIFY_PAGE_SIZE
+    ): SpotifyPage<Any>
+
+    suspend fun collection(
+        type: SpotifyCollectionType,
+        id: String,
+        offset: Int = 0,
+        limit: Int = SPOTIFY_PAGE_SIZE
+    ): SpotifyCollection?
+
     suspend fun artist(id: String): SpotifyArtist?
-    suspend fun albumsBy(artist: SpotifyArtist): List<SpotifyAlbum>
-    suspend fun topTracks(artist: SpotifyArtist): List<SpotifyTrack>
-    suspend fun search(query: String, scopes: Set<SearchScope>): SpotifySearchResults
+    suspend fun albumsBy(
+        artist: SpotifyArtist,
+        offset: Int = 0,
+        limit: Int = SPOTIFY_PAGE_SIZE
+    ): SpotifyPage<SpotifyAlbum>
+
+    suspend fun topTracks(
+        artist: SpotifyArtist,
+        offset: Int = 0,
+        limit: Int = SPOTIFY_PAGE_SIZE
+    ): SpotifyPage<SpotifyTrack>
+
+    suspend fun search(
+        query: String,
+        scopes: Set<SearchScope>,
+        offset: Int = 0,
+        limit: Int = SPOTIFY_PAGE_SIZE
+    ): SpotifySearchResults
 }
 
 /**

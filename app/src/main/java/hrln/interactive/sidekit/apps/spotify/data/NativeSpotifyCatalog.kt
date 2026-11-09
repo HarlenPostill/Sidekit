@@ -7,6 +7,7 @@ import hrln.interactive.sidekit.apps.spotify.SpotifyArtist
 import hrln.interactive.sidekit.apps.spotify.SpotifyCollection
 import hrln.interactive.sidekit.apps.spotify.SpotifyCollectionType
 import hrln.interactive.sidekit.apps.spotify.SpotifyEpisode
+import hrln.interactive.sidekit.apps.spotify.SpotifyPage
 import hrln.interactive.sidekit.apps.spotify.SpotifyPlaylist
 import hrln.interactive.sidekit.apps.spotify.SpotifySearchResults
 import hrln.interactive.sidekit.apps.spotify.SpotifyShow
@@ -31,19 +32,25 @@ class NativeSpotifyCatalog(
     /** The protocol has no safe recently-played endpoint; the ViewModel falls back to local history. */
     override suspend fun recentlyPlayed(): List<SpotifyTrack> = emptyList()
 
-    override suspend fun library(filter: LibraryFilter): List<Any> {
-        val array = parseArray(callText { native.catalogLibrary(filter.name) })
-        return when (filter) {
+    override suspend fun library(filter: LibraryFilter, offset: Int, limit: Int): SpotifyPage<Any> {
+        val array = parseArray(callText { native.catalogLibrary(filter.name, offset.toLong(), limit.toLong()) })
+        val items = when (filter) {
             LibraryFilter.LikedSongs -> array.tracks()
             LibraryFilter.Playlists -> array.playlists()
             LibraryFilter.Albums -> array.albums()
             LibraryFilter.Artists -> array.artists()
             LibraryFilter.Shows -> array.shows()
         }
+        return SpotifyPage.of(items, offset, limit)
     }
 
-    override suspend fun collection(type: SpotifyCollectionType, id: String): SpotifyCollection? {
-        val json = call { native.catalogCollection(type.name, id) }
+    override suspend fun collection(
+        type: SpotifyCollectionType,
+        id: String,
+        offset: Int,
+        limit: Int
+    ): SpotifyCollection? {
+        val json = call { native.catalogCollection(type.name, id, offset.toLong(), limit.toLong()) }
         return runCatching { json.collection(type) }.getOrNull()
     }
 
@@ -52,19 +59,24 @@ class NativeSpotifyCatalog(
         return runCatching { artistFromNative(json) }.getOrNull()
     }
 
-    override suspend fun albumsBy(artist: SpotifyArtist): List<SpotifyAlbum> {
-        val array = parseArray(callText { native.catalogAlbumsBy(artist.id) })
-        return array.albums()
+    override suspend fun albumsBy(artist: SpotifyArtist, offset: Int, limit: Int): SpotifyPage<SpotifyAlbum> {
+        val array = parseArray(callText { native.catalogAlbumsBy(artist.id, offset.toLong(), limit.toLong()) })
+        return SpotifyPage.of(array.albums(), offset, limit)
     }
 
-    override suspend fun topTracks(artist: SpotifyArtist): List<SpotifyTrack> {
-        val array = parseArray(callText { native.catalogTopTracks(artist.id) })
-        return array.tracks()
+    override suspend fun topTracks(artist: SpotifyArtist, offset: Int, limit: Int): SpotifyPage<SpotifyTrack> {
+        val array = parseArray(callText { native.catalogTopTracks(artist.id, offset.toLong(), limit.toLong()) })
+        return SpotifyPage.of(array.tracks(), offset, limit)
     }
 
-    override suspend fun search(query: String, scopes: Set<SearchScope>): SpotifySearchResults {
+    override suspend fun search(
+        query: String,
+        scopes: Set<SearchScope>,
+        offset: Int,
+        limit: Int
+    ): SpotifySearchResults {
         val scopeJson = JSONArray(scopes.map { it.name }).toString()
-        val json = call { native.catalogSearch(query.trim(), scopeJson, 20L) }
+        val json = call { native.catalogSearch(query.trim(), scopeJson, offset.toLong(), limit.toLong()) }
         return SpotifySearchResults(
             tracks = json.optJSONArray("tracks").tracks(),
             artists = json.optJSONArray("artists").artists(),
@@ -207,7 +219,9 @@ private fun JSONObject.collection(type: SpotifyCollectionType): SpotifyCollectio
         artRes = 0,
         items = items,
         artistId = optString("artistId").takeIf { it.isNotEmpty() },
-        artUrl = optString("artUrl").takeIf { it.isNotEmpty() }
+        artUrl = optString("artUrl").takeIf { it.isNotEmpty() },
+        totalItems = optInt("totalItems", items.size),
+        hasMore = optBoolean("hasMore", false)
     )
 }
 

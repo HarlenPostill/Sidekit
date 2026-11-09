@@ -114,6 +114,7 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                 onAlbum = { nav.navigate(collectionRoute(SpotifyCollectionType.Album, it.id)) },
                 onArtist = { nav.navigate(artistRoute(it.id)) },
                 onShow = { nav.navigate(collectionRoute(SpotifyCollectionType.Show, it.id)) },
+                onLoadMore = vm::loadMoreLibrary,
                 onDismissNotice = vm::dismissNotice
             )
         }
@@ -142,6 +143,8 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                     onQueueItem = vm::addToQueue,
                     onNowPlaying = { nav.navigate(NOW_PLAYING) },
                     onUndo = vm::undo,
+                    onLoadMore = { type?.let { vm.loadMoreCollection(it, id) } },
+                    loadingMore = "${type?.route}:$id" in state.collectionMorePending,
                     onDismissNotice = vm::dismissNotice
                 )
             }
@@ -171,6 +174,11 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                     onFollow = { vm.toggleFollow(artist) },
                     onNowPlaying = { nav.navigate(NOW_PLAYING) },
                     onUndo = vm::undo,
+                    onLoadMoreAlbums = { vm.loadMoreArtistAlbums(artist) },
+                    onLoadMoreTracks = { vm.loadMoreArtistTracks(artist) },
+                    albumHasMore = state.artistAlbumHasMore[artist.id] == true,
+                    trackHasMore = state.artistTrackHasMore[artist.id] == true,
+                    loadingMore = artist.id in state.artistMorePending,
                     onDismissNotice = vm::dismissNotice
                 )
             }
@@ -190,6 +198,7 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                 onAlbum = { nav.navigate(collectionRoute(SpotifyCollectionType.Album, it.id)) },
                 onPlaylist = { nav.navigate(collectionRoute(SpotifyCollectionType.Playlist, it.id)) },
                 onShow = { nav.navigate(collectionRoute(SpotifyCollectionType.Show, it.id)) },
+                onLoadMore = vm::loadMoreSearch,
                 onDismissNotice = vm::dismissNotice
             )
         }

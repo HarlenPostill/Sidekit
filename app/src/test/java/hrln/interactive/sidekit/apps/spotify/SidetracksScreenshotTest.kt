@@ -29,7 +29,7 @@ class SidetracksScreenshotTest {
         upcoming = recent.drop(1),
         history = recent.drop(3),
         recent = recent,
-        libraryItems = runBlocking { MockSpotifyDataSource.library(LibraryFilter.Albums) },
+        libraryItems = runBlocking { MockSpotifyDataSource.library(LibraryFilter.Albums).items },
         searchResults = runBlocking { MockSpotifyDataSource.search("night", SearchScope.entries.toSet()) },
         isPlaying = true,
         positionMs = 68_000L,
@@ -64,6 +64,7 @@ class SidetracksScreenshotTest {
             onAlbum = {},
             onArtist = {},
             onShow = {},
+            onLoadMore = {},
             onDismissNotice = {}
         )
     }
@@ -81,6 +82,8 @@ class SidetracksScreenshotTest {
             onQueueItem = {},
             onNowPlaying = {},
             onUndo = {},
+            onLoadMore = {},
+            loadingMore = false,
             onDismissNotice = {}
         )
     }
@@ -89,8 +92,8 @@ class SidetracksScreenshotTest {
         val artist = MockSpotifyDataSource.artists.first()
         ArtistScreen(
             artist,
-            runBlocking { MockSpotifyDataSource.albumsBy(artist) },
-            runBlocking { MockSpotifyDataSource.topTracks(artist) },
+            runBlocking { MockSpotifyDataSource.albumsBy(artist).items },
+            runBlocking { MockSpotifyDataSource.topTracks(artist).items },
             state,
             onBack = {},
             onPlay = {},
@@ -100,6 +103,11 @@ class SidetracksScreenshotTest {
             onFollow = {},
             onNowPlaying = {},
             onUndo = {},
+            onLoadMoreAlbums = {},
+            onLoadMoreTracks = {},
+            albumHasMore = false,
+            trackHasMore = false,
+            loadingMore = false,
             onDismissNotice = {}
         )
     }
@@ -117,6 +125,7 @@ class SidetracksScreenshotTest {
             onAlbum = {},
             onPlaylist = {},
             onShow = {},
+            onLoadMore = {},
             onDismissNotice = {}
         )
     }

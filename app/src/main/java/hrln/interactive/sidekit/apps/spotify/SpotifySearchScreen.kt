@@ -42,6 +42,7 @@ fun SpotifySearchScreen(
     onAlbum: (SpotifyAlbum) -> Unit,
     onPlaylist: (SpotifyPlaylist) -> Unit,
     onShow: (SpotifyShow) -> Unit,
+    onLoadMore: (SearchScope) -> Unit,
     onDismissNotice: () -> Unit
 ) {
     var expandedTracks by remember(state.query) { mutableStateOf(false) }
@@ -131,6 +132,9 @@ fun SpotifySearchScreen(
                         if (!expandedTracks && results.tracks.size > 5) {
                             item(key = "moreTracks") { TerminalRow("More tracks", secondary = "${results.tracks.size - 5} more", onClick = { expandedTracks = true }) }
                         }
+                        if (expandedTracks && SearchScope.Tracks in state.searchHasMore) {
+                            item(key = "moreTrackPages") { SearchMoreRow(SearchScope.Tracks, "More tracks", state, onLoadMore) }
+                        }
                     }
                     if (results.artists.isNotEmpty()) {
                         item(key = "artistsLabel") { SectionLabel("Artists") }
@@ -138,6 +142,9 @@ fun SpotifySearchScreen(
                             SpotifyLibraryRow(artist.artRes, artist.name, "Artist", Modifier.listFade(listState, slot + index), artUrl = artist.artUrl) { onArtist(artist) }
                         }
                         slot += results.artists.size
+                        if (SearchScope.Artists in state.searchHasMore) {
+                            item(key = "moreArtists") { SearchMoreRow(SearchScope.Artists, "More artists", state, onLoadMore) }
+                        }
                     }
                     if (results.albums.isNotEmpty()) {
                         item(key = "albumsLabel") { SectionLabel("Albums") }
@@ -145,6 +152,9 @@ fun SpotifySearchScreen(
                             SpotifyLibraryRow(album.artRes, album.title, "${album.artist} · ${album.year}", Modifier.listFade(listState, slot + index), artUrl = album.artUrl) { onAlbum(album) }
                         }
                         slot += results.albums.size
+                        if (SearchScope.Albums in state.searchHasMore) {
+                            item(key = "moreAlbums") { SearchMoreRow(SearchScope.Albums, "More albums", state, onLoadMore) }
+                        }
                     }
                     if (results.playlists.isNotEmpty()) {
                         item(key = "playlistsLabel") { SectionLabel("Playlists") }
@@ -152,15 +162,36 @@ fun SpotifySearchScreen(
                             SpotifyLibraryRow(playlist.artRes, playlist.name, "${playlist.owner} · ${playlist.trackCount} tracks", Modifier.listFade(listState, slot + index), artUrl = playlist.artUrl) { onPlaylist(playlist) }
                         }
                         slot += results.playlists.size
+                        if (SearchScope.Playlists in state.searchHasMore) {
+                            item(key = "morePlaylists") { SearchMoreRow(SearchScope.Playlists, "More playlists", state, onLoadMore) }
+                        }
                     }
                     if (results.shows.isNotEmpty()) {
                         item(key = "showsLabel") { SectionLabel("Shows") }
                         itemsIndexed(results.shows, key = { _, show -> "s${show.id}" }) { index, show ->
                             SpotifyLibraryRow(show.artRes, show.name, show.publisher, Modifier.listFade(listState, slot + index), artUrl = show.artUrl) { onShow(show) }
                         }
+                        if (SearchScope.Shows in state.searchHasMore) {
+                            item(key = "moreShows") { SearchMoreRow(SearchScope.Shows, "More shows", state, onLoadMore) }
+                        }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun SearchMoreRow(
+    scope: SearchScope,
+    label: String,
+    state: SpotifyUiState,
+    onLoadMore: (SearchScope) -> Unit
+) {
+    val loading = scope in state.searchMorePending
+    TerminalRow(
+        label,
+        secondary = if (loading) "Loading…" else null,
+        onClick = if (loading) null else ({ onLoadMore(scope) })
+    )
 }

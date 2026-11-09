@@ -21,12 +21,12 @@ interface SpotifyNative {
     fun audioFormat(): String?
     fun pollEvent(): String?
 
-    fun catalogLibrary(filter: String): String?
-    fun catalogCollection(kind: String, id: String): String?
+    fun catalogLibrary(filter: String, offset: Long, limit: Long): String?
+    fun catalogCollection(kind: String, id: String, offset: Long, limit: Long): String?
     fun catalogArtist(id: String): String?
-    fun catalogAlbumsBy(id: String): String?
-    fun catalogTopTracks(id: String): String?
-    fun catalogSearch(query: String, scopes: String, limit: Long): String?
+    fun catalogAlbumsBy(id: String, offset: Long, limit: Long): String?
+    fun catalogTopTracks(id: String, offset: Long, limit: Long): String?
+    fun catalogSearch(query: String, scopes: String, offset: Long, limit: Long): String?
 
     fun collectionContains(set: String, uris: String): String?
     fun collectionWrite(set: String, uris: String, removed: Boolean): Boolean

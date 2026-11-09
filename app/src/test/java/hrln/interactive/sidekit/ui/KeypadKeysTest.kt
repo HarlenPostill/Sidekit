@@ -1,6 +1,7 @@
 package hrln.interactive.sidekit.ui
 
 import android.view.KeyEvent
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -16,6 +17,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /** The keypad's top keys: top-right (ENDCALL) is Options, top-left (CALL) is Back. */
+@OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
 class KeypadKeysTest {
     @get:Rule(order = 0)
@@ -28,6 +30,7 @@ class KeypadKeysTest {
                 listLayout = false
                 hiddenApps = emptySet()
             }
+            hrln.interactive.sidekit.home.HomePreferences(context).reset()
         }
     }
 
@@ -70,6 +73,7 @@ class KeypadKeysTest {
 
     @Test fun screensWithoutOptionsSaySo() {
         // The dial pad has no options until a number is entered.
+        compose.waitUntilAtLeastOneExists(hasContentDescription("Phonebook"), 5_000)
         compose.onAllNodes(hasContentDescription("Phonebook")).onLast().performClick()
         compose.onNodeWithContentDescription("Dial pad").performClick()
         press(KeyEvent.KEYCODE_MENU)

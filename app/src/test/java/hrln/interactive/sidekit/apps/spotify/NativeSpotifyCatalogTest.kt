@@ -6,6 +6,8 @@ import hrln.interactive.sidekit.apps.spotify.data.NativeSpotifyCatalog
 import hrln.interactive.sidekit.apps.spotify.data.SpotifyFailure
 import hrln.interactive.sidekit.apps.spotify.data.SpotifyGatewayException
 import kotlinx.coroutines.test.runTest
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -59,6 +61,52 @@ class NativeSpotifyCatalogTest {
         assertTrue(catalog.isSaved(SpotifyCollectionType.Playlist, "playlist1") == true)
     }
 
+    @Test fun `library forwards paging and reports another page`() = runTest {
+        val tracks = JSONArray().apply {
+            repeat(50) { put(JSONObject().put("id", "t$it")) }
+        }
+        val native = FakeNative().apply { libraryResult = tracks.toString() }
+        val catalog = NativeSpotifyCatalog(native) {}
+
+        val page = catalog.library(LibraryFilter.LikedSongs, offset = 50, limit = 50)
+
+        assertEquals(50, page.items.size)
+        assertTrue(page.hasMore)
+        assertEquals(50L, native.libraryOffset)
+        assertEquals(50L, native.libraryLimit)
+    }
+
+    @Test fun `collection preserves total and page state`() = runTest {
+        val native = FakeNative().apply {
+            collectionResult = JSONObject()
+                .put("id", "p1")
+                .put("title", "Long playlist")
+                .put("subtitle", "You · 202 tracks")
+                .put("items", JSONArray())
+                .put("totalItems", 202)
+                .put("hasMore", true)
+                .toString()
+        }
+        val catalog = NativeSpotifyCatalog(native) {}
+
+        val collection = catalog.collection(SpotifyCollectionType.Playlist, "p1", offset = 50, limit = 50)
+
+        assertEquals(202, collection?.totalItems)
+        assertTrue(collection?.hasMore == true)
+        assertEquals(50L, native.collectionOffset)
+        assertEquals(50L, native.collectionLimit)
+    }
+
+    @Test fun `search forwards its offset and limit`() = runTest {
+        val native = FakeNative().apply { searchResult = "{\"tracks\":[]}" }
+        val catalog = NativeSpotifyCatalog(native) {}
+
+        catalog.search("night", setOf(SearchScope.Tracks), offset = 50, limit = 50)
+
+        assertEquals(50L, native.searchOffset)
+        assertEquals(50L, native.searchLimit)
+    }
+
     @Test fun `failed write surfaces a network failure`() = runTest {
         val native = FakeNative().apply { writeOk = false }
         val catalog = NativeSpotifyCatalog(native) {}
@@ -79,6 +127,15 @@ class NativeSpotifyCatalogTest {
         var playlistSaved = "false"
         var playlistId: String? = null
         var playlistSave = false
+        var libraryResult = "[]"
+        var libraryOffset = -1L
+        var libraryLimit = -1L
+        var collectionResult = "{}"
+        var collectionOffset = -1L
+        var collectionLimit = -1L
+        var searchResult = "{}"
+        var searchOffset = -1L
+        var searchLimit = -1L
 
         override fun initialize() = true
         override fun setTmpDir(path: String) = Unit
@@ -94,12 +151,24 @@ class NativeSpotifyCatalogTest {
         override fun readAudio(timeoutMs: Long): ByteArray? = null
         override fun audioFormat(): String? = null
         override fun pollEvent(): String? = null
-        override fun catalogLibrary(filter: String): String? = null
-        override fun catalogCollection(kind: String, id: String): String? = null
+        override fun catalogLibrary(filter: String, offset: Long, limit: Long): String {
+            libraryOffset = offset
+            libraryLimit = limit
+            return libraryResult
+        }
+        override fun catalogCollection(kind: String, id: String, offset: Long, limit: Long): String {
+            collectionOffset = offset
+            collectionLimit = limit
+            return collectionResult
+        }
         override fun catalogArtist(id: String): String? = null
-        override fun catalogAlbumsBy(id: String): String? = null
-        override fun catalogTopTracks(id: String): String? = null
-        override fun catalogSearch(query: String, scopes: String, limit: Long): String? = null
+        override fun catalogAlbumsBy(id: String, offset: Long, limit: Long): String? = null
+        override fun catalogTopTracks(id: String, offset: Long, limit: Long): String? = null
+        override fun catalogSearch(query: String, scopes: String, offset: Long, limit: Long): String {
+            searchOffset = offset
+            searchLimit = limit
+            return searchResult
+        }
         override fun collectionContains(set: String, uris: String): String? = contains
         override fun collectionWrite(set: String, uris: String, removed: Boolean): Boolean {
             this.set = set

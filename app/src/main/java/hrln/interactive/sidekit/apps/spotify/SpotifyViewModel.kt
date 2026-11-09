@@ -50,6 +50,14 @@ data class SpotifyUiState(
     val searchPending: Boolean = false,
     val authPending: Boolean = false,
     val libraryLoading: Boolean = false,
+    val libraryHasMore: Boolean = false,
+    val libraryMorePending: Boolean = false,
+    val searchHasMore: Set<SearchScope> = emptySet(),
+    val searchMorePending: Set<SearchScope> = emptySet(),
+    val collectionMorePending: Set<String> = emptySet(),
+    val artistAlbumHasMore: Map<String, Boolean> = emptyMap(),
+    val artistTrackHasMore: Map<String, Boolean> = emptyMap(),
+    val artistMorePending: Set<String> = emptySet(),
     val isPlaying: Boolean = false,
     val positionMs: Long = 0L,
     val shuffle: Boolean = false,
@@ -192,7 +200,7 @@ class SpotifyViewModel(
         _state.update { it.copy(pendingCollections = it.pendingCollections + key) }
         viewModelScope.launch {
             try {
-                val collection = catalog.collection(type, id)
+                val collection = catalog.collection(type, id, 0, SPOTIFY_PAGE_SIZE)
                 val saved = if (collection == null) null else writer?.isSaved(type, id)
                 _state.update {
                     val keys = it.savedCollectionKeys.toMutableSet()
@@ -215,6 +223,120 @@ class SpotifyViewModel(
         }
     }
 
+    fun loadMoreCollection(type: SpotifyCollectionType, id: String) {
+        val key = collectionKey(type, id)
+        val snapshot = _state.value
+        val collection = snapshot.collections[key] ?: return
+        if (!collection.hasMore || key in snapshot.collectionMorePending) return
+        _state.update { it.copy(collectionMorePending = it.collectionMorePending + key) }
+        viewModelScope.launch {
+            try {
+                val next = catalog.collection(type, id, collection.items.size, SPOTIFY_PAGE_SIZE)
+                _state.update { state ->
+                    val current = state.collections[key] ?: return@update state
+                    if (next == null) {
+                        state.copy(
+                            collectionMorePending = state.collectionMorePending - key,
+                            collections = state.collections + (key to current.copy(hasMore = false))
+                        )
+                    } else {
+                        state.copy(
+                            collectionMorePending = state.collectionMorePending - key,
+                            collections = state.collections + (key to current.append(next))
+                        )
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update {
+                    val current = it.collections[key]
+                    it.copy(
+                        collectionMorePending = it.collectionMorePending - key,
+                        collections = if (current == null) it.collections else it.collections + (key to current.copy(hasMore = false)),
+                        notice = playbackNotice(e)
+                    )
+                }
+            }
+        }
+    }
+
+    fun loadMoreArtistAlbums(artist: SpotifyArtist) {
+        val id = artist.id
+        val snapshot = _state.value
+        if (snapshot.artistAlbumHasMore[id] != true || id in snapshot.artistMorePending) return
+        _state.update { it.copy(artistMorePending = it.artistMorePending + id) }
+        viewModelScope.launch {
+            try {
+                val page = catalog.albumsBy(artist, snapshot.artistAlbums[id].orEmpty().size, SPOTIFY_PAGE_SIZE)
+                _state.update {
+                    it.copy(
+                        artistAlbums = it.artistAlbums + (id to it.artistAlbums[id].orEmpty() + page.items),
+                        artistAlbumHasMore = it.artistAlbumHasMore + (id to page.hasMore),
+                        artistMorePending = it.artistMorePending - id
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        artistAlbumHasMore = it.artistAlbumHasMore + (id to false),
+                        artistMorePending = it.artistMorePending - id,
+                        notice = playbackNotice(e)
+                    )
+                }
+            }
+        }
+    }
+
+    fun loadMoreArtistTracks(artist: SpotifyArtist) {
+        val id = artist.id
+        val snapshot = _state.value
+        if (snapshot.artistTrackHasMore[id] != true || id in snapshot.artistMorePending) return
+        _state.update { it.copy(artistMorePending = it.artistMorePending + id) }
+        viewModelScope.launch {
+            try {
+                val page = catalog.topTracks(artist, snapshot.artistTracks[id].orEmpty().size, SPOTIFY_PAGE_SIZE)
+                _state.update {
+                    it.copy(
+                        artistTracks = it.artistTracks + (id to it.artistTracks[id].orEmpty() + page.items),
+                        artistTrackHasMore = it.artistTrackHasMore + (id to page.hasMore),
+                        artistMorePending = it.artistMorePending - id
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        artistTrackHasMore = it.artistTrackHasMore + (id to false),
+                        artistMorePending = it.artistMorePending - id,
+                        notice = playbackNotice(e)
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun loadAllCollection(collection: SpotifyCollection): SpotifyCollection {
+        var current = collection
+        while (current.hasMore) {
+            val next = catalog.collection(current.type, current.id, current.items.size, SPOTIFY_PAGE_SIZE) ?: break
+            current = current.append(next)
+            _state.update {
+                it.copy(collections = it.collections + (collectionKey(current.type, current.id) to current))
+            }
+        }
+        return current
+    }
+
+    private fun SpotifyCollection.append(next: SpotifyCollection): SpotifyCollection = copy(
+        items = items + next.items,
+        totalItems = next.totalItems,
+        hasMore = next.hasMore
+    )
+
     fun ensureArtist(id: String) {
         val snapshot = _state.value
         if (id in snapshot.artists || id in snapshot.pendingArtists) return
@@ -226,8 +348,8 @@ class SpotifyViewModel(
                     _state.update { it.copy(pendingArtists = it.pendingArtists - id) }
                     return@launch
                 }
-                val albums = catalog.albumsBy(artist)
-                val tracks = catalog.topTracks(artist)
+                val albums = catalog.albumsBy(artist, 0, SPOTIFY_PAGE_SIZE)
+                val tracks = catalog.topTracks(artist, 0, SPOTIFY_PAGE_SIZE)
                 val followed = writer?.isArtistFollowed(id)
                 _state.update {
                     val ids = it.followedArtistIds.toMutableSet()
@@ -236,8 +358,10 @@ class SpotifyViewModel(
                     }
                     it.copy(
                         artists = it.artists + (id to artist),
-                        artistAlbums = it.artistAlbums + (id to albums),
-                        artistTracks = it.artistTracks + (id to tracks),
+                        artistAlbums = it.artistAlbums + (id to albums.items),
+                        artistTracks = it.artistTracks + (id to tracks.items),
+                        artistAlbumHasMore = it.artistAlbumHasMore + (id to albums.hasMore),
+                        artistTrackHasMore = it.artistTrackHasMore + (id to tracks.hasMore),
                         followedArtistIds = ids,
                         pendingArtists = it.pendingArtists - id
                     )
@@ -274,7 +398,25 @@ class SpotifyViewModel(
 
     fun playItem(item: SpotifyMediaItem) = play(listOf(item), 0)
 
-    fun playCollection(collection: SpotifyCollection, index: Int) = play(collection.items, index)
+    fun playCollection(collection: SpotifyCollection, index: Int) {
+        if (!collection.hasMore) {
+            play(collection.items, index)
+            return
+        }
+        val key = collectionKey(collection.type, collection.id)
+        _state.update { it.copy(collectionMorePending = it.collectionMorePending + key) }
+        viewModelScope.launch {
+            try {
+                play(loadAllCollection(collection).items, index)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(notice = playbackNotice(e)) }
+            } finally {
+                _state.update { it.copy(collectionMorePending = it.collectionMorePending - key) }
+            }
+        }
+    }
 
     fun playArtist(artist: SpotifyArtist) = play(topTracks(artist), 0)
 
@@ -520,7 +662,15 @@ class SpotifyViewModel(
 
     fun clearQuery() {
         searchJob?.cancel()
-        _state.update { it.copy(query = "", searchResults = SpotifySearchResults(), searchPending = false) }
+        _state.update {
+            it.copy(
+                query = "",
+                searchResults = SpotifySearchResults(),
+                searchPending = false,
+                searchHasMore = emptySet(),
+                searchMorePending = emptySet()
+            )
+        }
     }
 
     fun toggleScope(scope: SearchScope) {
@@ -632,11 +782,13 @@ class SpotifyViewModel(
             try {
                 val filter = _state.value.filter
                 val recent = catalog.recentlyPlayed()
-                val library = catalog.library(filter)
+                val library = catalog.library(filter, 0, SPOTIFY_PAGE_SIZE)
                 _state.update {
-                    it.withLibrarySaved(filter, library).copy(
+                    it.withLibrarySaved(filter, library.items).copy(
                         recent = recent.ifEmpty { history.items().filterIsInstance<SpotifyTrack>() },
-                        libraryItems = library,
+                        libraryItems = library.items,
+                        libraryHasMore = library.hasMore,
+                        libraryMorePending = false,
                         libraryLoading = false
                     )
                 }
@@ -650,13 +802,17 @@ class SpotifyViewModel(
 
     private fun loadLibrary(filter: LibraryFilter) {
         if (!_state.value.signedIn) return
-        _state.update { it.copy(libraryLoading = true) }
+        _state.update { it.copy(libraryLoading = true, libraryMorePending = false) }
         viewModelScope.launch {
             try {
-                val items = catalog.library(filter)
+                val page = catalog.library(filter, 0, SPOTIFY_PAGE_SIZE)
                 _state.update {
                     if (it.filter == filter) {
-                        it.withLibrarySaved(filter, items).copy(libraryItems = items, libraryLoading = false)
+                        it.withLibrarySaved(filter, page.items).copy(
+                            libraryItems = page.items,
+                            libraryHasMore = page.hasMore,
+                            libraryLoading = false
+                        )
                     } else {
                         it
                     }
@@ -665,6 +821,37 @@ class SpotifyViewModel(
                 throw e
             } catch (e: Exception) {
                 _state.update { it.copy(libraryLoading = false, notice = playbackNotice(e)) }
+            }
+        }
+    }
+
+    fun loadMoreLibrary() {
+        val snapshot = _state.value
+        if (!snapshot.libraryHasMore || snapshot.libraryMorePending || snapshot.libraryLoading) return
+        val filter = snapshot.filter
+        val offset = snapshot.libraryItems.size
+        _state.update { it.copy(libraryMorePending = true) }
+        viewModelScope.launch {
+            try {
+                val page = catalog.library(filter, offset, SPOTIFY_PAGE_SIZE)
+                _state.update {
+                    if (it.filter != filter) {
+                        it.copy(libraryMorePending = false)
+                    } else {
+                        val merged = (it.libraryItems + page.items).distinctBy(::libraryItemKey)
+                        it.withLibrarySaved(filter, merged).copy(
+                            libraryItems = merged,
+                            libraryHasMore = page.hasMore,
+                            libraryMorePending = false
+                        )
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(libraryMorePending = false, libraryHasMore = false, notice = playbackNotice(e))
+                }
             }
         }
     }
@@ -680,8 +867,16 @@ class SpotifyViewModel(
             it.copy(
                 recent = emptyList(),
                 libraryItems = emptyList(),
+                libraryHasMore = false,
+                libraryMorePending = false,
                 searchResults = SpotifySearchResults(),
+                searchHasMore = emptySet(),
+                searchMorePending = emptySet(),
                 collections = emptyMap(),
+                collectionMorePending = emptySet(),
+                artistAlbumHasMore = emptyMap(),
+                artistTrackHasMore = emptyMap(),
+                artistMorePending = emptySet(),
                 artists = emptyMap(),
                 artistAlbums = emptyMap(),
                 artistTracks = emptyMap(),
@@ -744,15 +939,22 @@ class SpotifyViewModel(
         searchJob?.cancel()
         val query = _state.value.query
         if (query.trim().length < 2) {
-            _state.update { it.copy(searchResults = SpotifySearchResults(), searchPending = false) }
+            _state.update {
+                it.copy(
+                    searchResults = SpotifySearchResults(),
+                    searchPending = false,
+                    searchHasMore = emptySet(),
+                    searchMorePending = emptySet()
+                )
+            }
             return
         }
-        _state.update { it.copy(searchPending = true) }
+        _state.update { it.copy(searchPending = true, searchHasMore = emptySet(), searchMorePending = emptySet()) }
         searchJob = viewModelScope.launch {
             delay(debounceMs)
             val scopes = _state.value.searchScopes
             val results = try {
-                if (_state.value.signedIn) catalog.search(query, scopes) else SpotifySearchResults()
+                if (_state.value.signedIn) catalog.search(query, scopes, 0, SPOTIFY_PAGE_SIZE) else SpotifySearchResults()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -761,12 +963,67 @@ class SpotifyViewModel(
             }
             _state.update {
                 if (it.query == query && it.searchScopes == scopes) {
-                    it.copy(searchResults = results, searchPending = false)
+                    it.copy(
+                        searchResults = results,
+                        searchPending = false,
+                        searchHasMore = scopes.filterTo(mutableSetOf()) { scope -> results.sizeFor(scope) >= SPOTIFY_PAGE_SIZE }
+                    )
                 } else {
                     it
                 }
             }
         }
+    }
+
+    fun loadMoreSearch(scope: SearchScope) {
+        val snapshot = _state.value
+        val query = snapshot.query
+        if (scope !in snapshot.searchHasMore || scope in snapshot.searchMorePending) return
+        val offset = snapshot.searchResults.sizeFor(scope)
+        _state.update { it.copy(searchMorePending = it.searchMorePending + scope) }
+        viewModelScope.launch {
+            try {
+                val more = catalog.search(query, setOf(scope), offset, SPOTIFY_PAGE_SIZE)
+                _state.update {
+                    if (it.query != query) {
+                        it.copy(searchMorePending = it.searchMorePending - scope)
+                    } else {
+                        val hasMore = if (more.sizeFor(scope) >= SPOTIFY_PAGE_SIZE) {
+                            it.searchHasMore + scope
+                        } else {
+                            it.searchHasMore - scope
+                        }
+                        it.copy(
+                            searchResults = it.searchResults.merge(scope, more),
+                            searchHasMore = hasMore,
+                            searchMorePending = it.searchMorePending - scope
+                        )
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(searchMorePending = it.searchMorePending - scope, notice = playbackNotice(e))
+                }
+            }
+        }
+    }
+
+    private fun SpotifySearchResults.sizeFor(scope: SearchScope): Int = when (scope) {
+        SearchScope.Tracks -> tracks.size
+        SearchScope.Artists -> artists.size
+        SearchScope.Albums -> albums.size
+        SearchScope.Playlists -> playlists.size
+        SearchScope.Shows -> shows.size
+    }
+
+    private fun SpotifySearchResults.merge(scope: SearchScope, next: SpotifySearchResults): SpotifySearchResults = when (scope) {
+        SearchScope.Tracks -> copy(tracks = (tracks + next.tracks).distinctBy { it.id })
+        SearchScope.Artists -> copy(artists = (artists + next.artists).distinctBy { it.id })
+        SearchScope.Albums -> copy(albums = (albums + next.albums).distinctBy { it.id })
+        SearchScope.Playlists -> copy(playlists = (playlists + next.playlists).distinctBy { it.id })
+        SearchScope.Shows -> copy(shows = (shows + next.shows).distinctBy { it.id })
     }
 
     /**
@@ -893,4 +1150,13 @@ class SpotifyViewModel(
     }
 
     private fun collectionKey(type: SpotifyCollectionType, id: String) = "${type.route}:$id"
+
+    private fun libraryItemKey(item: Any): String = when (item) {
+        is SpotifyTrack -> "t${item.id}"
+        is SpotifyPlaylist -> "p${item.id}"
+        is SpotifyAlbum -> "a${item.id}"
+        is SpotifyArtist -> "r${item.id}"
+        is SpotifyShow -> "s${item.id}"
+        else -> item.toString()
+    }
 }

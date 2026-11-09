@@ -115,8 +115,28 @@ data class SpotifyCollection(
     val artRes: Int,
     val items: List<SpotifyMediaItem>,
     val artistId: String? = null,
-    val artUrl: String? = null
+    val artUrl: String? = null,
+    val totalItems: Int = items.size,
+    val hasMore: Boolean = false
 )
+
+/** How many rows a catalog request asks for. Kept small for the Sidephone's weak CPU. */
+const val SPOTIFY_PAGE_SIZE = 50
+
+/** One page of a catalog list. [total] is null when the endpoint doesn't report it. */
+data class SpotifyPage<T>(
+    val items: List<T> = emptyList(),
+    val total: Int? = null,
+    val hasMore: Boolean = false
+) {
+    companion object {
+        fun <T> of(items: List<T>, offset: Int, limit: Int, total: Int? = null): SpotifyPage<T> = SpotifyPage(
+            items = items,
+            total = total,
+            hasMore = if (total != null) offset + items.size < total else items.size >= limit
+        )
+    }
+}
 
 data class SpotifySearchResults(
     val tracks: List<SpotifyTrack> = emptyList(),

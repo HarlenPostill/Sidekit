@@ -190,12 +190,20 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
     mut env: JNIEnv,
     _this: JObject,
     filter: JString,
+    offset: jlong,
+    limit: jlong,
 ) -> jni::sys::jstring {
     let Some(filter) = string(&mut env, &filter) else {
         return std::ptr::null_mut();
     };
     let result = engine::with_session_and_token(|session, token| {
-        engine::run(catalog::library(session, token, &filter))
+        engine::run(catalog::library(
+            session,
+            token,
+            &filter,
+            offset.max(0) as usize,
+            limit.max(1) as usize,
+        ))
     });
     catalog_result(&mut env, result)
 }
@@ -206,12 +214,21 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
     _this: JObject,
     kind: JString,
     id: JString,
+    offset: jlong,
+    limit: jlong,
 ) -> jni::sys::jstring {
     let (Some(kind), Some(id)) = (string(&mut env, &kind), string(&mut env, &id)) else {
         return std::ptr::null_mut();
     };
     let result = engine::with_session_and_token(|session, token| {
-        engine::run(catalog::collection(session, token, &kind, &id))
+        engine::run(catalog::collection(
+            session,
+            token,
+            &kind,
+            &id,
+            offset.max(0) as usize,
+            limit.max(1) as usize,
+        ))
     });
     catalog_result(&mut env, result)
 }
@@ -236,12 +253,20 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
     mut env: JNIEnv,
     _this: JObject,
     id: JString,
+    offset: jlong,
+    limit: jlong,
 ) -> jni::sys::jstring {
     let Some(id) = string(&mut env, &id) else {
         return std::ptr::null_mut();
     };
     let result = engine::with_session_and_token(|session, token| {
-        engine::run(catalog::albums_by(session, token, &id))
+        engine::run(catalog::albums_by(
+            session,
+            token,
+            &id,
+            offset.max(0) as usize,
+            limit.max(1) as usize,
+        ))
     });
     catalog_result(&mut env, result)
 }
@@ -251,12 +276,20 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
     mut env: JNIEnv,
     _this: JObject,
     id: JString,
+    offset: jlong,
+    limit: jlong,
 ) -> jni::sys::jstring {
     let Some(id) = string(&mut env, &id) else {
         return std::ptr::null_mut();
     };
     let result = engine::with_session_and_token(|session, token| {
-        engine::run(catalog::top_tracks(session, token, &id))
+        engine::run(catalog::top_tracks(
+            session,
+            token,
+            &id,
+            offset.max(0) as usize,
+            limit.max(1) as usize,
+        ))
     });
     catalog_result(&mut env, result)
 }
@@ -267,6 +300,7 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
     _this: JObject,
     query: JString,
     scopes: JString,
+    offset: jlong,
     limit: jlong,
 ) -> jni::sys::jstring {
     let (Some(query), Some(scopes)) = (string(&mut env, &query), string(&mut env, &scopes)) else {
@@ -278,13 +312,13 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
             session,
             token,
             &query,
+            offset.max(0) as i32,
             limit as i32,
             &scopes,
         ))
     });
     catalog_result(&mut env, result)
 }
-
 
 #[no_mangle]
 pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeBridge_nativeCollectionContains(

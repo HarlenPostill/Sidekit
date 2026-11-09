@@ -1,12 +1,14 @@
 package hrln.interactive.sidekit.apps.spotify.data
 
 import hrln.interactive.sidekit.apps.spotify.LibraryFilter
+import hrln.interactive.sidekit.apps.spotify.SPOTIFY_PAGE_SIZE
 import hrln.interactive.sidekit.apps.spotify.SearchScope
 import hrln.interactive.sidekit.apps.spotify.SpotifyAlbum
 import hrln.interactive.sidekit.apps.spotify.SpotifyArtist
 import hrln.interactive.sidekit.apps.spotify.SpotifyCollection
 import hrln.interactive.sidekit.apps.spotify.SpotifyCollectionType
 import hrln.interactive.sidekit.apps.spotify.SpotifyEpisode
+import hrln.interactive.sidekit.apps.spotify.SpotifyPage
 import hrln.interactive.sidekit.apps.spotify.SpotifyPlaylist
 import hrln.interactive.sidekit.apps.spotify.SpotifySearchResults
 import hrln.interactive.sidekit.apps.spotify.SpotifyShow
@@ -35,21 +37,48 @@ class SpotifyWebApi(private val accessToken: suspend () -> String?) {
         }
     }
 
-    suspend fun library(filter: LibraryFilter): List<Any> = when (filter) {
-        LibraryFilter.LikedSongs -> tracks("$ME_TRACKS?limit=50")
-        LibraryFilter.Playlists -> playlists("$ME_PLAYLISTS?limit=50")
-        LibraryFilter.Albums -> savedAlbums()
-        LibraryFilter.Artists -> followedArtists()
-        LibraryFilter.Shows -> savedShows()
+    suspend fun library(
+        filter: LibraryFilter,
+        offset: Int = 0,
+        limit: Int = SPOTIFY_PAGE_SIZE
+    ): SpotifyPage<Any> {
+        val page = { items: List<Any>, total: Int? -> SpotifyPage.of(items, offset, limit, total) }
+        return when (filter) {
+            LibraryFilter.LikedSongs -> {
+                val json = get("$ME_TRACKS?limit=$limit&offset=$offset", token())
+                page(tracks(json), json.optInt("total").takeIf { it > 0 })
+            }
+
+            LibraryFilter.Playlists -> {
+                val json = get("$ME_PLAYLISTS?limit=$limit&offset=$offset", token())
+                page(json.optJSONArray("items").playlists(), json.optInt("total").takeIf { it > 0 })
+            }
+
+            LibraryFilter.Albums -> savedAlbums(offset, limit)
+
+            LibraryFilter.Artists -> followedArtists(offset, limit)
+
+            LibraryFilter.Shows -> savedShows(offset, limit)
+        }
     }
 
-    suspend fun collection(type: SpotifyCollectionType, id: String): SpotifyCollection? = when (type) {
-        SpotifyCollectionType.Album -> runCatching { get("$ALBUMS/${enc(id)}", token()) }.getOrNull()?.let(::albumCollection)
-        SpotifyCollectionType.Playlist -> runCatching { get("$PLAYLISTS/${enc(id)}", token()) }.getOrNull()?.let(::playlistCollection)
-        SpotifyCollectionType.Show -> runCatching { get("$SHOWS/${enc(id)}", token()) }.getOrNull()?.let(::showCollection)
+    suspend fun collection(
+        type: SpotifyCollectionType,
+        id: String,
+        offset: Int = 0,
+        limit: Int = SPOTIFY_PAGE_SIZE
+    ): SpotifyCollection? = when (type) {
+        SpotifyCollectionType.Album -> runCatching { albumCollection(id, offset, limit) }.getOrNull()
+        SpotifyCollectionType.Playlist -> runCatching { playlistCollection(id, offset, limit) }.getOrNull()
+        SpotifyCollectionType.Show -> runCatching { showCollection(id, offset, limit) }.getOrNull()
     }
 
-    suspend fun search(query: String, scopes: Set<SearchScope>, limit: Int = 20): SpotifySearchResults {
+    suspend fun search(
+        query: String,
+        scopes: Set<SearchScope>,
+        offset: Int = 0,
+        limit: Int = SPOTIFY_PAGE_SIZE
+    ): SpotifySearchResults {
         if (query.trim().length < 2) return SpotifySearchResults()
         val types = buildList {
             if (SearchScope.Tracks in scopes) add("track")
@@ -60,7 +89,7 @@ class SpotifyWebApi(private val accessToken: suspend () -> String?) {
         }
         if (types.isEmpty()) return SpotifySearchResults()
         val json = get(
-            "$SEARCH?q=${enc(query.trim())}&type=${types.joinToString(",")}&limit=${limit.coerceIn(1, 50)}&market=from_token",
+            "$SEARCH?q=${enc(query.trim())}&type=${types.joinToString(",")}&limit=${limit.coerceIn(1, 50)}&offset=$offset&market=from_token",
             token()
         )
         return SpotifySearchResults(
@@ -76,21 +105,34 @@ class SpotifyWebApi(private val accessToken: suspend () -> String?) {
         artist(get("$ARTISTS/${enc(id)}", token()))
     }.getOrNull()
 
-    suspend fun albumsBy(artist: SpotifyArtist): List<SpotifyAlbum> = runCatching {
-        val json = get("$ARTISTS/${enc(artist.id)}/albums?include_groups=album,single&limit=50&market=from_token", token())
-        json.optJSONArray("items").albums()
-    }.getOrDefault(emptyList())
+    suspend fun albumsBy(
+        artist: SpotifyArtist,
+        offset: Int = 0,
+        limit: Int = SPOTIFY_PAGE_SIZE
+    ): SpotifyPage<SpotifyAlbum> {
+        val json = runCatching {
+            get(
+                "$ARTISTS/${enc(artist.id)}/albums?include_groups=album,single&limit=$limit&offset=$offset&market=from_token",
+                token()
+            )
+        }.getOrNull()
+        val albums = json?.optJSONArray("items").albums().orEmpty()
+        return SpotifyPage.of(albums, offset, limit, json?.optInt("total")?.takeIf { it > 0 })
+    }
 
-    suspend fun topTracks(artist: SpotifyArtist): List<SpotifyTrack> = runCatching {
-        val json = get("$ARTISTS/${enc(artist.id)}/top-tracks?market=from_token", token())
-        json.optJSONArray("tracks").tracks()
-    }.getOrDefault(emptyList())
+    suspend fun topTracks(artist: SpotifyArtist, offset: Int = 0, limit: Int = SPOTIFY_PAGE_SIZE): SpotifyPage<SpotifyTrack> {
+        val json = runCatching {
+            get("$ARTISTS/${enc(artist.id)}/top-tracks?market=from_token", token())
+        }.getOrNull()
+        val tracks = json?.optJSONArray("tracks").tracks().orEmpty().drop(offset).take(limit)
+        return SpotifyPage.of(tracks, offset, limit)
+    }
 
     /** Visible for tests: maps Spotify's search envelope without touching the network. */
     internal fun parseSearchTracks(json: JSONObject): List<SpotifyTrack> = json.optJSONObject("tracks")?.optJSONArray("items").tracks()
 
-    private suspend fun tracks(url: String): List<SpotifyTrack> {
-        val items = get(url, token()).optJSONArray("items") ?: return emptyList()
+    private fun tracks(json: JSONObject): List<SpotifyTrack> {
+        val items = json.optJSONArray("items") ?: return emptyList()
         return buildList(items.length()) {
             for (i in 0 until items.length()) {
                 items.optJSONObject(i)?.optJSONObject("track")?.let(::track)?.let(::add)
@@ -98,34 +140,40 @@ class SpotifyWebApi(private val accessToken: suspend () -> String?) {
         }
     }
 
-    private suspend fun playlists(url: String): List<SpotifyPlaylist> = get(url, token()).optJSONArray("items").playlists()
-
-    private suspend fun savedAlbums(): List<SpotifyAlbum> {
-        val items = get("$ME_ALBUMS?limit=50", token()).optJSONArray("items") ?: return emptyList()
-        return buildList(items.length()) {
+    private suspend fun savedAlbums(offset: Int, limit: Int): SpotifyPage<Any> {
+        val json = get("$ME_ALBUMS?limit=$limit&offset=$offset", token())
+        val items = json.optJSONArray("items") ?: JSONArray()
+        val albums = buildList(items.length()) {
             for (i in 0 until items.length()) {
                 items.optJSONObject(i)?.optJSONObject("album")?.let(::album)?.let(::add)
             }
         }
+        return SpotifyPage.of(albums, offset, limit, json.optInt("total").takeIf { it > 0 })
     }
 
-    private suspend fun followedArtists(): List<SpotifyArtist> {
-        val json = get("$ME_FOLLOWING?type=artist&limit=50", token())
-        return json.optJSONObject("artists")?.optJSONArray("items").artists()
+    private suspend fun followedArtists(offset: Int, limit: Int): SpotifyPage<Any> {
+        val json = get("$ME_FOLLOWING?type=artist&limit=$limit&offset=$offset", token())
+        val page = json.optJSONObject("artists")
+        val artists = page?.optJSONArray("items").artists().orEmpty()
+        return SpotifyPage.of(artists, offset, limit, page?.optInt("total")?.takeIf { it > 0 })
     }
 
-    private suspend fun savedShows(): List<SpotifyShow> {
-        val items = get("$ME_SHOWS?limit=50", token()).optJSONArray("items") ?: return emptyList()
-        return buildList(items.length()) {
+    private suspend fun savedShows(offset: Int, limit: Int): SpotifyPage<Any> {
+        val json = get("$ME_SHOWS?limit=$limit&offset=$offset", token())
+        val items = json.optJSONArray("items") ?: JSONArray()
+        val shows = buildList(items.length()) {
             for (i in 0 until items.length()) {
                 items.optJSONObject(i)?.optJSONObject("show")?.let(::show)?.let(::add)
             }
         }
+        return SpotifyPage.of(shows, offset, limit, json.optInt("total").takeIf { it > 0 })
     }
 
-    private fun albumCollection(json: JSONObject): SpotifyCollection? {
+    private suspend fun albumCollection(id: String, offset: Int, limit: Int): SpotifyCollection? {
+        val json = get("$ALBUMS/${enc(id)}", token())
         val album = album(json) ?: return null
-        val tracks = json.optJSONObject("tracks")?.optJSONArray("items").tracks()
+        val page = get("$ALBUMS/${enc(id)}/tracks?limit=$limit&offset=$offset", token())
+        val tracks = page.optJSONArray("items").tracks()
         return SpotifyCollection(
             type = SpotifyCollectionType.Album,
             id = album.id,
@@ -134,18 +182,17 @@ class SpotifyWebApi(private val accessToken: suspend () -> String?) {
             artRes = 0,
             items = tracks,
             artistId = album.artistId,
-            artUrl = album.artUrl
+            artUrl = album.artUrl,
+            totalItems = album.trackCount,
+            hasMore = offset + tracks.size < album.trackCount
         )
     }
 
-    private fun playlistCollection(json: JSONObject): SpotifyCollection? {
+    private suspend fun playlistCollection(id: String, offset: Int, limit: Int): SpotifyCollection? {
+        val json = get("$PLAYLISTS/${enc(id)}", token())
         val playlist = playlist(json) ?: return null
-        val items = json.optJSONObject("tracks")?.optJSONArray("items") ?: JSONArray()
-        val tracks = buildList(items.length()) {
-            for (i in 0 until items.length()) {
-                items.optJSONObject(i)?.optJSONObject("track")?.let(::track)?.let(::add)
-            }
-        }
+        val page = get("$PLAYLISTS/${enc(id)}/tracks?limit=$limit&offset=$offset&market=from_token", token())
+        val tracks = tracks(page)
         return SpotifyCollection(
             type = SpotifyCollectionType.Playlist,
             id = playlist.id,
@@ -154,13 +201,17 @@ class SpotifyWebApi(private val accessToken: suspend () -> String?) {
             artRes = 0,
             items = tracks,
             artistId = playlist.ownerId,
-            artUrl = playlist.artUrl
+            artUrl = playlist.artUrl,
+            totalItems = playlist.trackCount,
+            hasMore = offset + tracks.size < playlist.trackCount
         )
     }
 
-    private fun showCollection(json: JSONObject): SpotifyCollection? {
+    private suspend fun showCollection(id: String, offset: Int, limit: Int): SpotifyCollection? {
+        val json = get("$SHOWS/${enc(id)}", token())
         val show = show(json) ?: return null
-        val items = json.optJSONObject("episodes")?.optJSONArray("items") ?: JSONArray()
+        val page = get("$SHOWS/${enc(id)}/episodes?limit=$limit&offset=$offset&market=from_token", token())
+        val items = page.optJSONArray("items") ?: JSONArray()
         val episodes = buildList(items.length()) {
             for (i in 0 until items.length()) {
                 items.optJSONObject(i)?.let { episode(it, show) }?.let(::add)
@@ -173,7 +224,9 @@ class SpotifyWebApi(private val accessToken: suspend () -> String?) {
             subtitle = "${show.publisher} · ${show.episodeCount} episodes",
             artRes = 0,
             items = episodes,
-            artUrl = show.artUrl
+            artUrl = show.artUrl,
+            totalItems = show.episodeCount,
+            hasMore = offset + episodes.size < show.episodeCount
         )
     }
 

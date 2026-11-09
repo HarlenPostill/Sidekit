@@ -113,6 +113,7 @@ fun LibraryScreen(
     onAlbum: (SpotifyAlbum) -> Unit,
     onArtist: (SpotifyArtist) -> Unit,
     onShow: (SpotifyShow) -> Unit,
+    onLoadMore: () -> Unit,
     onDismissNotice: () -> Unit
 ) {
     val actions = withNotice(
@@ -165,6 +166,11 @@ fun LibraryScreen(
                     else -> Unit
                 }
             }
+            if (state.libraryHasMore) {
+                item(key = "more") {
+                    PagingFooter(state.libraryMorePending, onLoadMore)
+                }
+            }
         }
     }
 }
@@ -182,6 +188,8 @@ fun CollectionScreen(
     onQueueItem: (SpotifyMediaItem) -> Unit,
     onNowPlaying: () -> Unit,
     onUndo: () -> Unit,
+    onLoadMore: () -> Unit,
+    loadingMore: Boolean,
     onDismissNotice: () -> Unit
 ) {
     val colors = SidekitTheme.colors
@@ -231,7 +239,7 @@ fun CollectionScreen(
                     maxLines = 1
                 )
             }
-            itemsIndexed(collection.items, key = { _, item -> item.id }) { index, item ->
+            itemsIndexed(collection.items, key = { index, item -> "$index:${item.id}" }) { index, item ->
                 SidekitSwipeRow(
                     key = item.id,
                     group = swipes,
@@ -246,6 +254,11 @@ fun CollectionScreen(
                         secondary = if (item is SpotifyEpisode) formatPublishedDate(item.published) else item.creator,
                         onClick = { onItem(index) }
                     )
+                }
+            }
+            if (collection.hasMore) {
+                item(key = "more") {
+                    PagingFooter(loadingMore, onLoadMore)
                 }
             }
         }
@@ -266,6 +279,11 @@ fun ArtistScreen(
     onFollow: () -> Unit,
     onNowPlaying: () -> Unit,
     onUndo: () -> Unit,
+    onLoadMoreAlbums: () -> Unit,
+    onLoadMoreTracks: () -> Unit,
+    albumHasMore: Boolean,
+    trackHasMore: Boolean,
+    loadingMore: Boolean,
     onDismissNotice: () -> Unit
 ) {
     val followed = artist.id in state.followedArtistIds
@@ -288,7 +306,7 @@ fun ArtistScreen(
                 }
             }
             item(key = "topLabel") { SectionLabel("Top tracks") }
-            itemsIndexed(tracks.take(10), key = { _, track -> track.id }) { index, track ->
+            itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
                 SidekitSwipeRow(
                     key = track.id,
                     group = swipes,
@@ -297,6 +315,9 @@ fun ArtistScreen(
                 ) {
                     SpotifyMediaRow(track, Modifier, secondary = track.artist, onClick = { onTrack(track) })
                 }
+            }
+            if (trackHasMore) {
+                item(key = "tracksMore") { PagingFooter(loadingMore, onLoadMoreTracks) }
             }
             item(key = "albumsLabel") { SectionLabel("Albums") }
             itemsIndexed(albums, key = { _, album -> album.id }) { index, album ->
@@ -307,6 +328,9 @@ fun ArtistScreen(
                     Modifier.listFade(listState, index + tracks.size + 3),
                     artUrl = album.artUrl
                 ) { onAlbum(album) }
+            }
+            if (albumHasMore) {
+                item(key = "albumsMore") { PagingFooter(loadingMore, onLoadMoreAlbums) }
             }
         }
     }

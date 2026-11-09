@@ -119,12 +119,12 @@ class NativeSpotifyGatewayTest {
         override fun readAudio(timeoutMs: Long): ByteArray? = null
         override fun audioFormat(): String? = null
         override fun pollEvent(): String? = null
-        override fun catalogLibrary(filter: String): String? = null
-        override fun catalogCollection(kind: String, id: String): String? = null
+        override fun catalogLibrary(filter: String, offset: Long, limit: Long): String? = null
+        override fun catalogCollection(kind: String, id: String, offset: Long, limit: Long): String? = null
         override fun catalogArtist(id: String): String? = null
-        override fun catalogAlbumsBy(id: String): String? = null
-        override fun catalogTopTracks(id: String): String? = null
-        override fun catalogSearch(query: String, scopes: String, limit: Long): String? = null
+        override fun catalogAlbumsBy(id: String, offset: Long, limit: Long): String? = null
+        override fun catalogTopTracks(id: String, offset: Long, limit: Long): String? = null
+        override fun catalogSearch(query: String, scopes: String, offset: Long, limit: Long): String? = null
         override fun collectionContains(set: String, uris: String): String? = null
         override fun collectionWrite(set: String, uris: String, removed: Boolean): Boolean = true
         override fun playlistSaved(id: String): String? = null

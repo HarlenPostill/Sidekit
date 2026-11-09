@@ -30,13 +30,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const PATHFINDER_BASE: &str = "https://api-partner.spotify.com";
 const SEARCH_QUERY_HASH: &str = "d9f785900f0710b31c07818d617f4f7600c1e21217e80f5b043d1e78d74e6026";
-const COLLECTION_LIMIT: usize = 500;
 const COLLECTION_PAGE: i32 = 100;
-const COLLECTION_PAGES: usize = 8;
-const PLAYLIST_TRACK_LIMIT: usize = 100;
-const SHOW_EPISODE_LIMIT: usize = 50;
-const ARTIST_ALBUM_LIMIT: usize = 50;
-const ARTIST_TOP_LIMIT: usize = 20;
+const COLLECTION_PAGES: usize = 100;
+const MAX_PAGE: usize = 200;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -131,6 +127,8 @@ struct CollectionJson {
     items: Vec<Value>,
     artist_id: Option<String>,
     art_url: Option<String>,
+    total_items: i32,
+    has_more: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -703,11 +701,12 @@ async fn pathfinder_search(
     session: &Session,
     token: &str,
     query: &str,
+    offset: i32,
     limit: i32,
 ) -> Result<Value, String> {
     let variables = json!({
         "searchTerm": query,
-        "offset": 0,
+        "offset": offset,
         "limit": limit,
         "numberOfTopResults": 5,
         "includeAudiobooks": false,
@@ -747,13 +746,14 @@ pub async fn search(
     session: &Session,
     token: &str,
     query: &str,
+    offset: i32,
     limit: i32,
     scopes: &[String],
 ) -> Result<String, String> {
     let want = |scope: &str| {
         scopes.is_empty() || scopes.iter().any(|value| value.eq_ignore_ascii_case(scope))
     };
-    match pathfinder_search(session, token, query, limit.clamp(1, 50)).await {
+    match pathfinder_search(session, token, query, offset.max(0), limit.clamp(1, 50)).await {
         Ok(value) => {
             let tracks = if want("Tracks") {
                 section_items(&value, "tracksV2")
@@ -825,7 +825,12 @@ pub async fn search(
                     }
                 }
             }
-            let tracks = fetch_tracks(session, token, &uris, limit.clamp(1, 50) as usize).await;
+            let page: Vec<SpotifyUri> = uris
+                .into_iter()
+                .skip(offset.max(0) as usize)
+                .take(limit.clamp(1, 50) as usize)
+                .collect();
+            let tracks = fetch_tracks(session, token, &page, page.len()).await;
             let results = SearchJson {
                 tracks,
                 artists: Vec::new(),
@@ -990,10 +995,12 @@ async fn collection_page(
     session: &Session,
     token: &str,
     set: &str,
+    offset: usize,
     limit: usize,
 ) -> Result<Vec<CollectionItem>, String> {
     let username = session.username();
     let mut items = Vec::new();
+    let mut skipped = 0usize;
     let mut page_token = String::new();
     let mut seen = HashSet::new();
     for _ in 0..COLLECTION_PAGES {
@@ -1016,6 +1023,10 @@ async fn collection_page(
         let (page_items, next) = parse_collection_page(&bytes);
         let got = page_items.len();
         for item in page_items.into_iter().filter(|item| !item.is_removed) {
+            if skipped < offset {
+                skipped += 1;
+                continue;
+            }
             items.push(item);
             if items.len() >= limit {
                 return Ok(items);
@@ -1040,9 +1051,11 @@ fn collection_uris(items: &[CollectionItem], prefix: &str) -> Vec<SpotifyUri> {
 async fn rootlist_playlists(
     session: &Session,
     token: &str,
+    offset: usize,
     limit: usize,
 ) -> Result<Vec<PlaylistJson>, String> {
     let mut seen = 0usize;
+    let mut skipped = 0usize;
     let mut playlists = Vec::new();
     for _ in 0..COLLECTION_PAGES {
         let user = session.username();
@@ -1073,13 +1086,21 @@ async fn rootlist_playlists(
             if name.trim().is_empty() {
                 continue;
             }
+            if skipped < offset {
+                skipped += 1;
+                continue;
+            }
             let owner = metadata
                 .map(|m| m.owner_username().to_string())
                 .unwrap_or_default();
             let art_url = attributes
                 .and_then(|a| a.picture_size.iter().find(|size| !size.url().is_empty()))
                 .map(|size| size.url().to_string());
-            let owner_id = if owner.is_empty() { None } else { Some(owner.clone()) };
+            let owner_id = if owner.is_empty() {
+                None
+            } else {
+                Some(owner.clone())
+            };
             let owner = if owner.is_empty() {
                 "Spotify".to_string()
             } else if owner == user {
@@ -1108,7 +1129,6 @@ async fn rootlist_playlists(
     }
     Ok(playlists)
 }
-
 
 fn collection_item_bytes(uri: &str, added_at: i32, removed: bool) -> Vec<u8> {
     let mut item = Vec::new();
@@ -1305,28 +1325,35 @@ pub async fn playlist_save(
     Ok(())
 }
 
-pub async fn library(session: &Session, token: &str, filter: &str) -> Result<String, String> {
+pub async fn library(
+    session: &Session,
+    token: &str,
+    filter: &str,
+    offset: usize,
+    limit: usize,
+) -> Result<String, String> {
+    let limit = limit.clamp(1, MAX_PAGE);
     match filter {
         "LikedSongs" => {
-            let items = collection_page(session, token, "collection", 50).await?;
+            let items = collection_page(session, token, "collection", offset, limit).await?;
             let uris = collection_uris(&items, "spotify:track:");
-            let tracks = fetch_tracks(session, token, &uris, 50).await;
+            let tracks = fetch_tracks(session, token, &uris, uris.len()).await;
             Ok(serde_json::to_string(&tracks).map_err(|e| e.to_string())?)
         }
-        "Playlists" => Ok(
-            serde_json::to_string(&rootlist_playlists(session, token, 200).await?)
-                .map_err(|e| e.to_string())?,
-        ),
+        "Playlists" => Ok(serde_json::to_string(
+            &rootlist_playlists(session, token, offset, limit).await?,
+        )
+        .map_err(|e| e.to_string())?),
         "Albums" => {
-            let items = collection_page(session, token, "collection", COLLECTION_LIMIT).await?;
+            let items = collection_page(session, token, "collection", offset, limit).await?;
             let uris = collection_uris(&items, "spotify:album:");
             let albums = fetch_albums(session, token, &uris, false).await;
             Ok(serde_json::to_string(&albums).map_err(|e| e.to_string())?)
         }
         "Artists" => {
-            let mut items = collection_page(session, token, "artist", COLLECTION_LIMIT).await?;
+            let mut items = collection_page(session, token, "artist", offset, limit).await?;
             if items.is_empty() {
-                items = collection_page(session, token, "collection", COLLECTION_LIMIT)
+                items = collection_page(session, token, "collection", offset, limit)
                     .await?
                     .into_iter()
                     .filter(|item| item.uri.starts_with("spotify:artist:"))
@@ -1347,7 +1374,7 @@ pub async fn library(session: &Session, token: &str, filter: &str) -> Result<Str
             Ok(serde_json::to_string(&artists).map_err(|e| e.to_string())?)
         }
         "Shows" => {
-            let items = collection_page(session, token, "show", COLLECTION_LIMIT).await?;
+            let items = collection_page(session, token, "show", offset, limit).await?;
             let uris = collection_uris(&items, "spotify:show:");
             let futures = uris.iter().map(|uri| {
                 let session = session.clone();
@@ -1371,14 +1398,19 @@ pub async fn collection(
     token: &str,
     kind: &str,
     id: &str,
+    offset: usize,
+    limit: usize,
 ) -> Result<String, String> {
+    let limit = limit.clamp(1, MAX_PAGE);
     match kind {
         "Album" => {
             let album = album_get(session, token, &spotify_uri(id, "album")?)
                 .await
                 .map_err(|e| e.to_string())?;
-            let uris: Vec<SpotifyUri> = album.tracks().cloned().collect();
-            let tracks = fetch_tracks(session, token, &uris, 100).await;
+            let all_uris: Vec<SpotifyUri> = album.tracks().cloned().collect();
+            let total = all_uris.len();
+            let uris: Vec<SpotifyUri> = all_uris.into_iter().skip(offset).take(limit).collect();
+            let tracks = fetch_tracks(session, token, &uris, uris.len()).await;
             let album_json = album_json(&album, tracks);
             let subtitle = format!(
                 "{} · {} · {} tracks",
@@ -1397,6 +1429,8 @@ pub async fn collection(
                     .collect(),
                 artist_id: Some(album_json.artist_id.clone()).filter(|value| !value.is_empty()),
                 art_url: album_json.art_url.clone(),
+                total_items: total as i32,
+                has_more: offset + album_json.tracks.len() < total,
             };
             Ok(serde_json::to_string(&collection).map_err(|e| e.to_string())?)
         }
@@ -1404,8 +1438,10 @@ pub async fn collection(
             let playlist = playlist_get(session, token, &spotify_uri(id, "playlist")?)
                 .await
                 .map_err(|e| e.to_string())?;
-            let uris: Vec<SpotifyUri> = playlist.tracks().cloned().collect();
-            let tracks = fetch_tracks(session, token, &uris, PLAYLIST_TRACK_LIMIT).await;
+            let all_uris: Vec<SpotifyUri> = playlist.tracks().cloned().collect();
+            let total = (playlist.length.max(0) as usize).max(all_uris.len());
+            let uris: Vec<SpotifyUri> = all_uris.into_iter().skip(offset).take(limit).collect();
+            let tracks = fetch_tracks(session, token, &uris, uris.len()).await;
             let mut playlist_json = playlist_json(&playlist, tracks);
             if playlist_json.owner == session.username() {
                 playlist_json.owner = "You".to_string();
@@ -1427,6 +1463,8 @@ pub async fn collection(
                     .collect(),
                 artist_id: playlist_json.owner_id.clone(),
                 art_url: playlist_json.art_url.clone(),
+                total_items: total as i32,
+                has_more: offset + playlist_json.tracks.len() < total,
             };
             Ok(serde_json::to_string(&collection).map_err(|e| e.to_string())?)
         }
@@ -1434,8 +1472,10 @@ pub async fn collection(
             let show = show_get(session, token, &spotify_uri(id, "show")?)
                 .await
                 .map_err(|e| e.to_string())?;
-            let uris: Vec<SpotifyUri> = show.episodes.iter().cloned().collect();
-            let futures = uris.iter().take(SHOW_EPISODE_LIMIT).map(|uri| {
+            let all_uris: Vec<SpotifyUri> = show.episodes.iter().cloned().collect();
+            let total = all_uris.len();
+            let uris: Vec<SpotifyUri> = all_uris.into_iter().skip(offset).take(limit).collect();
+            let futures = uris.iter().map(|uri| {
                 let session = session.clone();
                 let token = token.to_string();
                 let uri = uri.clone();
@@ -1467,6 +1507,8 @@ pub async fn collection(
                     .collect(),
                 artist_id: None,
                 art_url: show_json.art_url.clone(),
+                total_items: total as i32,
+                has_more: offset + show_json.episodes.len() < total,
             };
             Ok(serde_json::to_string(&collection).map_err(|e| e.to_string())?)
         }
@@ -1480,21 +1522,27 @@ pub async fn artist(session: &Session, token: &str, id: &str) -> Result<String, 
         .map_err(|e| e.to_string())?;
     let album_ids: Vec<String> = artist
         .albums_current()
-        .take(ARTIST_ALBUM_LIMIT)
-        .chain(artist.singles_current().take(ARTIST_ALBUM_LIMIT))
+        .chain(artist.singles_current())
         .map(|uri| uri_of(&id_of(uri), "album"))
         .collect();
     Ok(serde_json::to_string(&artist_json(&artist, album_ids)).map_err(|e| e.to_string())?)
 }
 
-pub async fn albums_by(session: &Session, token: &str, id: &str) -> Result<String, String> {
+pub async fn albums_by(
+    session: &Session,
+    token: &str,
+    id: &str,
+    offset: usize,
+    limit: usize,
+) -> Result<String, String> {
     let artist = artist_get(session, token, &spotify_uri(id, "artist")?)
         .await
         .map_err(|e| e.to_string())?;
     let uris: Vec<SpotifyUri> = artist
         .albums_current()
-        .take(ARTIST_ALBUM_LIMIT)
-        .chain(artist.singles_current().take(ARTIST_ALBUM_LIMIT))
+        .chain(artist.singles_current())
+        .skip(offset)
+        .take(limit.clamp(1, MAX_PAGE))
         .cloned()
         .collect();
     let mut albums = fetch_albums(session, token, &uris, false).await;
@@ -1502,7 +1550,13 @@ pub async fn albums_by(session: &Session, token: &str, id: &str) -> Result<Strin
     Ok(serde_json::to_string(&albums).map_err(|e| e.to_string())?)
 }
 
-pub async fn top_tracks(session: &Session, token: &str, id: &str) -> Result<String, String> {
+pub async fn top_tracks(
+    session: &Session,
+    token: &str,
+    id: &str,
+    offset: usize,
+    limit: usize,
+) -> Result<String, String> {
     let artist = artist_get(session, token, &spotify_uri(id, "artist")?)
         .await
         .map_err(|e| e.to_string())?;
@@ -1511,9 +1565,10 @@ pub async fn top_tracks(session: &Session, token: &str, id: &str) -> Result<Stri
         .top_tracks
         .for_country(&country)
         .iter()
-        .take(ARTIST_TOP_LIMIT)
+        .skip(offset)
+        .take(limit.clamp(1, MAX_PAGE))
         .cloned()
         .collect();
-    let tracks = fetch_tracks(session, token, &uris, ARTIST_TOP_LIMIT).await;
+    let tracks = fetch_tracks(session, token, &uris, uris.len()).await;
     Ok(serde_json::to_string(&tracks).map_err(|e| e.to_string())?)
 }

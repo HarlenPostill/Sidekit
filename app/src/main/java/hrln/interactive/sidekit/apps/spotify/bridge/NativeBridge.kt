@@ -43,17 +43,17 @@ object NativeBridge : SpotifyNative {
 
     override fun pollEvent(): String? = if (isAvailable) runCatching { nativePollEvent() }.getOrNull() else null
 
-    override fun catalogLibrary(filter: String): String? = if (isAvailable) runCatching { nativeCatalogLibrary(filter) }.getOrNull() else null
+    override fun catalogLibrary(filter: String, offset: Long, limit: Long): String? = if (isAvailable) runCatching { nativeCatalogLibrary(filter, offset, limit) }.getOrNull() else null
 
-    override fun catalogCollection(kind: String, id: String): String? = if (isAvailable) runCatching { nativeCatalogCollection(kind, id) }.getOrNull() else null
+    override fun catalogCollection(kind: String, id: String, offset: Long, limit: Long): String? = if (isAvailable) runCatching { nativeCatalogCollection(kind, id, offset, limit) }.getOrNull() else null
 
     override fun catalogArtist(id: String): String? = if (isAvailable) runCatching { nativeCatalogArtist(id) }.getOrNull() else null
 
-    override fun catalogAlbumsBy(id: String): String? = if (isAvailable) runCatching { nativeCatalogAlbumsBy(id) }.getOrNull() else null
+    override fun catalogAlbumsBy(id: String, offset: Long, limit: Long): String? = if (isAvailable) runCatching { nativeCatalogAlbumsBy(id, offset, limit) }.getOrNull() else null
 
-    override fun catalogTopTracks(id: String): String? = if (isAvailable) runCatching { nativeCatalogTopTracks(id) }.getOrNull() else null
+    override fun catalogTopTracks(id: String, offset: Long, limit: Long): String? = if (isAvailable) runCatching { nativeCatalogTopTracks(id, offset, limit) }.getOrNull() else null
 
-    override fun catalogSearch(query: String, scopes: String, limit: Long): String? = if (isAvailable) runCatching { nativeCatalogSearch(query, scopes, limit) }.getOrNull() else null
+    override fun catalogSearch(query: String, scopes: String, offset: Long, limit: Long): String? = if (isAvailable) runCatching { nativeCatalogSearch(query, scopes, offset, limit) }.getOrNull() else null
 
     override fun collectionContains(set: String, uris: String): String? = if (isAvailable) runCatching { nativeCollectionContains(set, uris) }.getOrNull() else null
 
@@ -77,12 +77,12 @@ object NativeBridge : SpotifyNative {
     private external fun nativeReadAudio(timeoutMs: Long): ByteArray?
     private external fun nativeAudioFormat(): String?
     private external fun nativePollEvent(): String?
-    private external fun nativeCatalogLibrary(filter: String): String?
-    private external fun nativeCatalogCollection(kind: String, id: String): String?
+    private external fun nativeCatalogLibrary(filter: String, offset: Long, limit: Long): String?
+    private external fun nativeCatalogCollection(kind: String, id: String, offset: Long, limit: Long): String?
     private external fun nativeCatalogArtist(id: String): String?
-    private external fun nativeCatalogAlbumsBy(id: String): String?
-    private external fun nativeCatalogTopTracks(id: String): String?
-    private external fun nativeCatalogSearch(query: String, scopes: String, limit: Long): String?
+    private external fun nativeCatalogAlbumsBy(id: String, offset: Long, limit: Long): String?
+    private external fun nativeCatalogTopTracks(id: String, offset: Long, limit: Long): String?
+    private external fun nativeCatalogSearch(query: String, scopes: String, offset: Long, limit: Long): String?
     private external fun nativeCollectionContains(set: String, uris: String): String?
     private external fun nativeCollectionWrite(set: String, uris: String, removed: Boolean): Boolean
     private external fun nativePlaylistSaved(id: String): String?

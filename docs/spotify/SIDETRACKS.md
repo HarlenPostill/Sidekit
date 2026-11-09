@@ -88,6 +88,9 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
   Upcoming and History rows in the queue swipe left to remove; removing queue history also drops
   the item from recently played. Library uses the standard single-line header; Settings has one
   sign-out action in the bar.
+- Catalog lists page in 50-row chunks. Library, collection, artist, and search surfaces load the
+  next page as their footer becomes visible, so a 202-track playlist reaches its last track without
+  composing every row at once.
 
 **Verified**
 
@@ -97,6 +100,7 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
   playback advances/pauses correctly, show episodes format dates, and artwork no longer crashes.
 - On `SP01GE260600886`: instrumented tests cover the foreground-service notification and actions,
   media-session metadata/state, media-owner hand-off, and the headphone-unplug pause path.
+- JVM tests cover catalog page offsets, collection totals, and page boundaries.
 
 ---
 
@@ -108,8 +112,6 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
    and repeat. Queue, queue history, and recently played persist; playback does not resume
    automatically after process death.
 3. **Playlist owner names.** Followed playlists show the owner's Spotify username.
-4. **Hard read limits.** Collection 500, playlist tracks 100, show episodes 50, artist albums 50,
-   search 20. These truncate silently today.
 
 ---
 
@@ -129,23 +131,18 @@ cross-cutting refactor.
 
 ### P1 — parity and completeness
 
-1. **Pagination.**
-   - Page liked songs, playlists, albums, artists, shows, playlist tracks, show episodes, artist
-     albums, and search.
-   - Remove silent truncation or surface "showing N of M".
-   - Acceptance: a 202-track playlist scrolls to its last track.
-2. **Recently played.**
+1. **Recently played.**
    - Choose a supported first-party history endpoint or keep local history only.
    - If the Web API is the only source, make it opt-in and degrade to local history when the
      quota is exhausted.
-3. **Queue/shuffle/repeat ownership.**
+2. **Queue/shuffle/repeat ownership.**
    - Decide whether librespot player state or `SpotifyQueueRepository` is authoritative.
    - If Sidekit stays authoritative, mirror shuffle/repeat/autoplay into the native player and
      add an explicit native "Play next" path; otherwise delete the duplicate local state.
    - Acceptance: Now Playing matches what the native player is doing.
-4. **Playlist owner names.** Resolve through the authenticated user profile and cache, not on
+3. **Playlist owner names.** Resolve through the authenticated user profile and cache, not on
    every collection open.
-5. **Test coverage.**
+4. **Test coverage.**
    - `NativeSpotifyCatalog` JSON parsing and error mapping (auth, network, malformed response).
    - `NativeSpotifyCatalog`/`SpotifyViewModel` event state machine, including `stopped`.
    - Device smoke checklist for sign-in, library filters, search, playback, queue, lock screen,
