@@ -2,6 +2,8 @@ package hrln.interactive.sidekit.apps.spotify.data
 
 import android.content.Context
 import hrln.interactive.sidekit.apps.spotify.AudioQuality
+import hrln.interactive.sidekit.apps.spotify.SpotifyMediaItem
+import hrln.interactive.sidekit.apps.spotify.SpotifyTrack
 import hrln.interactive.sidekit.apps.spotify.auth.EncryptedSpotifyCredentialStore
 import hrln.interactive.sidekit.apps.spotify.auth.SpotifyAuth
 import hrln.interactive.sidekit.apps.spotify.bridge.NativeBridge
@@ -57,7 +59,12 @@ class SpotifySession(
             scope = playbackScope,
             audio = SpotifyAudioSink(NativeBridge, playbackScope),
             context = context?.applicationContext
-        )
+        ).also { player ->
+            // Adopt transport actions when no ViewModel is attached. The ViewModel installs its
+            // own callbacks while it exists and clears them in onCleared().
+            player.fallbackNext = { skipNext() }
+            player.fallbackPrevious = { skipPrevious() }
+        }
     }
 
     init {
@@ -124,6 +131,43 @@ class SpotifySession(
 
     fun stopPlayback() {
         playbackScope.launch { runCatching { playback.stop() } }
+    }
+
+    /**
+     * Advances the queue when the notification/lock screen has no ViewModel to call back into.
+     * The ViewModel follows the same queue semantics, so the UI adopts this state on return.
+     */
+    fun skipNext() {
+        val before = queue.snapshot.current ?: return
+        val snapshot = queue.next(auto = false)
+        if (snapshot.current !== before) snapshot.current?.let(::startFromTransport)
+    }
+
+    /** Restarts the current item past the 3 s threshold, otherwise returns to queue history. */
+    fun skipPrevious() {
+        val current = queue.snapshot.current ?: return
+        if (playback.position > 3_000L) {
+            playbackScope.launch { runCatching { seek(0L) } }
+            return
+        }
+        val snapshot = queue.previous(playback.position)
+        if (snapshot.current !== current) {
+            snapshot.current?.let(::startFromTransport)
+        } else {
+            playbackScope.launch { runCatching { seek(0L) } }
+        }
+    }
+
+    private fun startFromTransport(item: SpotifyMediaItem) {
+        if (item is SpotifyTrack) history.record(item, System.currentTimeMillis())
+        playback.setNowPlaying(item, 0L)
+        val uri = item.uri ?: return
+        playbackScope.launch {
+            runCatching { play(uri, 0L) }.onFailure {
+                playback.pause()
+                playback.updateState(false, 0L)
+            }
+        }
     }
 
     /** One librespot player event, or null when nothing has happened since the last poll. */

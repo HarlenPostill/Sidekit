@@ -68,7 +68,8 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
   ViewModel adopts the live item, position, and playing state. Starting a new item releases the
   previous `AudioTrack`.
 - Foreground `mediaPlayback` service and platform `MediaSession` keep librespot alive with the
-  screen off. Notification shows artwork, title, artist, and previous/play-pause/next.
+  screen off. Notification shows artwork, title, artist, and previous/play-pause/next. When the
+  ViewModel is gone, next/previous fall back to advancing the process-wide queue directly.
 - Sidetracks and local Music pause each other through `MediaSessions`; Sidetracks takes and
   abandons `AUDIOFOCUS_GAIN`, including transient loss and headphone changes.
 - OAuth tokens rotate into an existing native session. Sign-out stops the decoder synchronously,
@@ -100,8 +101,6 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
    search 20. These truncate silently today.
 5. **Native `stopped` event is unhandled**, so stopping from the notification can leave a stale
    track on screen.
-6. **Doc drift.** `native/sidekit-spotify/README.md` claims no librespot patch is applied; one
-   is (see §6).
 
 ---
 
@@ -110,23 +109,15 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 Close these before proposing the branch for merge. They are correctness/contract issues, not
 parity work.
 
-1. **Notification transport without a ViewModel.** Play/pause/stop go through `SpotifySession`,
-   but next/previous route through `SpotifyViewModel`; if it is cleared those buttons do nothing.
-   Move queue ownership or a fallback transport into the session/playback layer, or disable the
-   buttons when no queue owner is attached.
-2. **Notification tap target.** The content intent opens `MainActivity` at the launcher. Deep-link
+1. **Notification tap target.** The content intent opens `MainActivity` at the launcher. Deep-link
    it to Sidetracks/Now Playing.
-3. **Handle native `stopped`.** Clear or resync current state so notification stop cannot leave
+2. **Handle native `stopped`.** Clear or resync current state so notification stop cannot leave
    stale UI.
-4. **Queue/history persistence.** Persist across process death using the existing atomic-file
+3. **Queue/history persistence.** Persist across process death using the existing atomic-file
    convention, or state the limitation explicitly in the PR.
-5. **Align shipped contracts with docs.** Current implementation is authoritative: session id
-   `"sidetracks"`, channel `"sidetracks"`, notification id `0x6D76`. Update any remaining
-   `"spotify"`/`0x5354` references.
-6. **Service/audio-focus instrumentation.** Cover the foreground service, media session,
+4. **Service/audio-focus instrumentation.** Cover the foreground service, media session,
    audio-focus hand-off, and headphone unplug on Android. Current tests cover JVM seams and
    screenshots only.
-7. **Fix the native README patch claim** and link it to §6 below.
 
 ---
 

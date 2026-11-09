@@ -74,6 +74,37 @@ class SpotifyPlaybackTest {
         assertTrue(gateway.stopped)
     }
 
+    @Test fun `requestNext prefers the attached UI owner`() {
+        val playback = SpotifyPlayback(
+            FakeGateway(),
+            CoroutineScope(StandardTestDispatcher()),
+            MediaSessionRegistry()
+        )
+        var uiCalls = 0
+        var fallbackCalls = 0
+        playback.onNext = { uiCalls++ }
+        playback.fallbackNext = { fallbackCalls++ }
+
+        playback.requestNext()
+
+        assertEquals(1, uiCalls)
+        assertEquals(0, fallbackCalls)
+    }
+
+    @Test fun `requestNext falls back when the UI owner is gone`() {
+        val playback = SpotifyPlayback(
+            FakeGateway(),
+            CoroutineScope(StandardTestDispatcher()),
+            MediaSessionRegistry()
+        )
+        var fallbackCalls = 0
+        playback.fallbackNext = { fallbackCalls++ }
+
+        playback.requestNext()
+
+        assertEquals(1, fallbackCalls)
+    }
+
     private class FakeGateway(private val failLoad: Boolean = false) : SpotifyGateway {
         var loadedUri: String? = null
         var autoplay = false

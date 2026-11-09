@@ -58,10 +58,16 @@ class SpotifyPlayback(
 
     override val isActive: Boolean get() = playing
 
-    /** Queue ops still live in the ViewModel; the notification and lock screen call back into it. */
+    /**
+     * Queue ops normally live in the ViewModel so its screen state stays in sync. When the
+     * ViewModel is gone, [fallbackNext]/[fallbackPrevious] keep the notification and lock-screen
+     * transport working by advancing the process-wide queue instead.
+     */
     var onNext: (() -> Unit)? = null
     var onPrevious: (() -> Unit)? = null
     var onSeek: ((Long) -> Unit)? = null
+    var fallbackNext: (() -> Unit)? = null
+    var fallbackPrevious: (() -> Unit)? = null
 
     private var mediaSession: MediaSession? = null
     private var artJob: Job? = null
@@ -180,9 +186,9 @@ class SpotifyPlayback(
         if (callback != null) callback(positionMs) else scope.launch { runCatching { seek(positionMs) } }
     }
 
-    fun requestNext() = onNext?.invoke()
+    fun requestNext() = (onNext ?: fallbackNext)?.invoke()
 
-    fun requestPrevious() = onPrevious?.invoke()
+    fun requestPrevious() = (onPrevious ?: fallbackPrevious)?.invoke()
 
     suspend fun stop() {
         playing = false
