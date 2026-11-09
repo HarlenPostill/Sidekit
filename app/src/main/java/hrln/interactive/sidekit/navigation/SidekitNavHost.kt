@@ -32,6 +32,7 @@ import hrln.interactive.sidekit.apps.sideport.openPorted
 import hrln.interactive.sidekit.apps.sideport.sideportGraph
 import hrln.interactive.sidekit.apps.sideticks.sideticksGraph
 import hrln.interactive.sidekit.apps.sideweather.sideweatherGraph
+import hrln.interactive.sidekit.apps.spotify.SidetracksLinks
 import hrln.interactive.sidekit.apps.spotify.sidetracksGraph
 import hrln.interactive.sidekit.apps.translate.translateGraph
 import hrln.interactive.sidekit.apps.tripplanning.tripPlanningGraph
@@ -56,6 +57,8 @@ fun SidekitNavHost(navController: NavHostController = rememberNavController(), h
     IncomingLinks.Follow(navController)
     // A projected app's "Messages and media" opens its Sideport hub.
     SideportLinks.Follow(navController)
+    // Tapping the Sidetracks playback notification opens Now Playing.
+    SidetracksLinks.Follow(navController)
     // No screen transition. Every screen is the same frame (title, body, action bar) and the
     // title and bar are shared chrome that morph on their own, so navigating swaps only the body,
     // which plays its own entrance (rows rising in). Nothing moves as a whole screen, and only one

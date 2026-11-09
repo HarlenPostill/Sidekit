@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -25,6 +26,7 @@ import hrln.interactive.sidekit.design.components.SidekitScaffold
 import hrln.interactive.sidekit.navigation.LAUNCHER_ROUTE
 import hrln.interactive.sidekit.navigation.SubApp
 import hrln.interactive.sidekit.ui.UndoWindowLifecycle
+import kotlinx.coroutines.flow.MutableStateFlow
 
 private val ROOT = SubApp.Sidetracks.route
 private val HOME = "$ROOT/home"
@@ -39,6 +41,33 @@ private val SIGN_IN = "$ROOT/sign-in"
 
 private fun collectionRoute(type: SpotifyCollectionType, id: String) = "$ROOT/collection/${type.route}/$id"
 private fun artistRoute(id: String) = "$ROOT/artist/$id"
+
+/**
+ * A tap on the playback notification opens Sidetracks at Now Playing instead of the launcher.
+ * The activity records the request here; the nav host consumes it once it is composed.
+ */
+object SidetracksLinks {
+    const val ACTION_OPEN_NOW_PLAYING = "hrln.interactive.sidekit.action.SIDETRACKS_NOW_PLAYING"
+
+    private val pending = MutableStateFlow(false)
+
+    fun handle(intent: Intent?): Boolean {
+        if (intent?.action != ACTION_OPEN_NOW_PLAYING) return false
+        pending.value = true
+        return true
+    }
+
+    @Composable
+    fun Follow(nav: NavHostController) {
+        val open by pending.collectAsState()
+        LaunchedEffect(open) {
+            if (!open) return@LaunchedEffect
+            pending.value = false
+            nav.navigate(ROOT) { popUpTo(LAUNCHER_ROUTE) }
+            nav.navigate(NOW_PLAYING) { launchSingleTop = true }
+        }
+    }
+}
 
 private val collectionArgs = listOf(
     navArgument("type") { type = NavType.StringType },

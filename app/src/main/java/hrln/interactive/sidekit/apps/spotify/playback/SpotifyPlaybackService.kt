@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
 import android.os.IBinder
 import hrln.interactive.sidekit.MainActivity
+import hrln.interactive.sidekit.apps.spotify.SidetracksLinks
 import hrln.interactive.sidekit.apps.spotify.data.SpotifySessions
 import hrln.interactive.sidekit.design.icons.SidekitIcon
 
@@ -86,7 +87,9 @@ class SpotifyPlaybackService : Service() {
         val open = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(this, MainActivity::class.java)
+                .setAction(SidetracksLinks.ACTION_OPEN_NOW_PLAYING)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE
         )
         return Notification.Builder(this, playback.notificationChannelId)

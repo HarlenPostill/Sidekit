@@ -18,6 +18,7 @@ import hrln.interactive.sidekit.apps.settings.rememberCaseColour
 import hrln.interactive.sidekit.apps.settings.rememberCompactLayout
 import hrln.interactive.sidekit.apps.sidemessage.IncomingLinks
 import hrln.interactive.sidekit.apps.sideport.SideportLinks
+import hrln.interactive.sidekit.apps.spotify.SidetracksLinks
 import hrln.interactive.sidekit.design.action.ChromeState
 import hrln.interactive.sidekit.design.canvas.SidekitCanvas
 import hrln.interactive.sidekit.design.input.Keypad
@@ -40,8 +41,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Opened from an sms: link or a message notification: go to that conversation.
-        if (savedInstanceState == null && !SideportLinks.handle(intent)) IncomingLinks.handle(intent)
+        // Opened from an sms: link, a message notification, or the playback notification.
+        if (savedInstanceState == null && !SideportLinks.handle(intent) && !IncomingLinks.handle(intent)) {
+            SidetracksLinks.handle(intent)
+        }
         enableEdgeToEdge()
         // SideKit uses the whole display; the launcher header carries the clock.
         WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -110,8 +113,8 @@ class MainActivity : ComponentActivity() {
         // singleTask: pressing Home while an app is open delivers the HOME intent here.
         if (intent.hasCategory(Intent.CATEGORY_HOME)) {
             homeRequests.intValue++
-        } else if (!SideportLinks.handle(intent)) {
-            IncomingLinks.handle(intent)
+        } else if (!SideportLinks.handle(intent) && !IncomingLinks.handle(intent)) {
+            SidetracksLinks.handle(intent)
         }
     }
 }
