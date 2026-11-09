@@ -16,6 +16,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import hrln.interactive.sidekit.design.action.SideAction
+import hrln.interactive.sidekit.design.action.withNotice
 import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.navigation.SubApp
@@ -50,16 +51,16 @@ internal fun AppsScreen(vm: AppsViewModel, back: () -> Unit) {
         },
     )
     val list = rememberLazyListState()
-    SidekitScaffold("Apps", actions = listOf(SideAction.back("back", "Home", back)), options = options) { padding ->
+    val actions = withNotice(message, { message = null }, listOf(SideAction.back("back", "Home", back)))
+    SidekitScaffold("Apps", actions = actions, options = options) { padding ->
         SidekitList(padding, state = list) {
             item { AppSearchField(query) { vm.query.value = it } }
             item { SidekitCard { SidekitText(selected?.let { "${it.label} selected. Press Options for app info or uninstall." } ?: "Tap to open · hold an app for Options", style = SidekitTheme.typography.label, maxLines = Int.MAX_VALUE) } }
-            val banner = message ?: state.error
-            banner?.let { item { SidekitCard(onClick = { message = null }) { SidekitText(it, style = SidekitTheme.typography.label, maxLines = Int.MAX_VALUE) } } }
+            state.error?.let { item { SidekitCard { SidekitText(it, style = SidekitTheme.typography.label, maxLines = Int.MAX_VALUE) } } }
             if (!state.loaded && state.error == null) item { SidekitItem("Loading apps…") }
             if (state.loaded && state.apps.isEmpty()) item { SidekitItem("No matching apps") }
             // listFade needs the row's real list index: search field and hint, plus the banner if shown.
-            val rowsStart = 2 + if (banner != null) 1 else 0
+            val rowsStart = 2 + if (state.error != null) 1 else 0
             itemsIndexed(state.apps, key = { _, it -> it.key }) { index, target ->
                 AppRow(
                     target,
