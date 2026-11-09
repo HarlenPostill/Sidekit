@@ -5,7 +5,7 @@ mod catalog;
 mod engine;
 
 use jni::objects::{JObject, JString};
-use jni::sys::{jboolean, jbyteArray, jfloat, jlong, JNI_FALSE, JNI_TRUE};
+use jni::sys::{jboolean, jbyteArray, jlong, JNI_FALSE, JNI_TRUE};
 use jni::JNIEnv;
 use std::time::Duration;
 
@@ -86,8 +86,9 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
 pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeBridge_nativeCreatePlayer(
     _env: JNIEnv,
     _this: JObject,
+    bitrate_kbps: jlong,
 ) -> jboolean {
-    if engine::create_player().is_ok() {
+    if engine::create_player(bitrate_kbps.clamp(0, u16::MAX as i64) as u16).is_ok() {
         JNI_TRUE
     } else {
         JNI_FALSE
@@ -141,15 +142,6 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
     position_ms: jlong,
 ) -> jboolean {
     bool_result(engine::seek(position_ms.max(0) as u32))
-}
-
-#[no_mangle]
-pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeBridge_nativeSetVolume(
-    _env: JNIEnv,
-    _this: JObject,
-    volume: jfloat,
-) {
-    engine::set_volume(volume);
 }
 
 #[no_mangle]
@@ -291,6 +283,85 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
         ))
     });
     catalog_result(&mut env, result)
+}
+
+
+#[no_mangle]
+pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeBridge_nativeCollectionContains(
+    mut env: JNIEnv,
+    _this: JObject,
+    set: JString,
+    uris: JString,
+) -> jni::sys::jstring {
+    let (Some(set), Some(uris)) = (string(&mut env, &set), string(&mut env, &uris)) else {
+        return std::ptr::null_mut();
+    };
+    let uris: Vec<String> = serde_json::from_str(&uris).unwrap_or_default();
+    let result = engine::with_session_and_token(|session, token| {
+        engine::run(catalog::collection_contains(session, token, &set, &uris))
+    });
+    catalog_result(&mut env, result)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeBridge_nativeCollectionWrite(
+    mut env: JNIEnv,
+    _this: JObject,
+    set: JString,
+    uris: JString,
+    removed: jboolean,
+) -> jboolean {
+    let (Some(set), Some(uris)) = (string(&mut env, &set), string(&mut env, &uris)) else {
+        return JNI_FALSE;
+    };
+    let uris: Vec<String> = serde_json::from_str(&uris).unwrap_or_default();
+    let result = engine::with_session_and_token(|session, token| {
+        engine::run(catalog::collection_write(
+            session,
+            token,
+            &set,
+            &uris,
+            removed == JNI_TRUE,
+        ))
+    });
+    bool_result(result)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeBridge_nativePlaylistSaved(
+    mut env: JNIEnv,
+    _this: JObject,
+    id: JString,
+) -> jni::sys::jstring {
+    let Some(id) = string(&mut env, &id) else {
+        return std::ptr::null_mut();
+    };
+    let result = engine::with_session_and_token(|session, token| {
+        engine::run(catalog::playlist_saved(session, token, &id))
+            .and_then(|saved| serde_json::to_string(&saved).map_err(|e| e.to_string()))
+    });
+    catalog_result(&mut env, result)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeBridge_nativePlaylistSave(
+    mut env: JNIEnv,
+    _this: JObject,
+    id: JString,
+    save: jboolean,
+) -> jboolean {
+    let Some(id) = string(&mut env, &id) else {
+        return JNI_FALSE;
+    };
+    let result = engine::with_session_and_token(|session, token| {
+        engine::run(catalog::playlist_save(
+            session,
+            token,
+            &id,
+            save == JNI_TRUE,
+        ))
+    });
+    bool_result(result)
 }
 
 fn bool_result(result: Result<(), String>) -> jboolean {

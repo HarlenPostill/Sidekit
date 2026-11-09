@@ -55,6 +55,7 @@ import hrln.interactive.sidekit.apps.media.formatDuration
 import hrln.interactive.sidekit.design.action.ActionMotion
 import hrln.interactive.sidekit.design.action.ActionTone
 import hrln.interactive.sidekit.design.action.SideAction
+import hrln.interactive.sidekit.design.action.undoBar
 import hrln.interactive.sidekit.design.components.SidekitIconImage
 import hrln.interactive.sidekit.design.components.SidekitIconItem
 import hrln.interactive.sidekit.design.components.SidekitItem
@@ -286,6 +287,25 @@ fun withNotice(notice: String?, onDismiss: () -> Unit, actions: List<SideAction>
 
 fun spotifyBack(label: String, onBack: () -> Unit) = listOf(SideAction.back("back", label, onBack))
 
+/**
+ * The action bar for screens that can change saved state. While an Undo offer is live it takes the
+ * right slot; otherwise the bar shows the screen's normal actions and any notice.
+ */
+fun spotifyBar(
+    state: SpotifyUiState,
+    onDismissNotice: () -> Unit,
+    onUndo: () -> Unit,
+    continueWith: SideAction,
+    extra: List<SideAction> = emptyList()
+): List<SideAction> {
+    val undo = state.undo
+    return if (undo != null) {
+        undoBar(continueWith, SideAction.undo(contentDescription = undo.contentDescription, onClick = onUndo))
+    } else {
+        withNotice(state.notice, onDismissNotice, listOf(continueWith) + extra)
+    }
+}
+
 fun repeatLabel(repeat: RepeatMode) = repeat.label
 
 /**
@@ -395,26 +415,5 @@ fun SpotifyLibraryRow(
             }
             SidekitIconImage(SidekitIcon.ArrowRightAlt, size = 30.dp, contentDescription = null)
         }
-    }
-}
-
-/** Compact "Up next" affordance; a full Item would steal height from the artwork. */
-@Composable
-fun UpNextRow(title: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val colors = SidekitTheme.colors
-    Row(
-        modifier
-            .fillMaxWidth()
-            .height(46.dp)
-            .clip(SidekitTheme.shapes.control)
-            .background(colors.surfaceA3)
-            .clickable(onClickLabel = "Open queue", onClick = onClick)
-            .padding(horizontal = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        SidekitText("Up next", style = SidekitTheme.typography.caption, color = colors.surfaceA6)
-        SidekitText(title, Modifier.weight(1f), style = SidekitTheme.typography.caption, maxLines = 1)
-        SidekitIconImage(SidekitIcon.ArrowRightAlt, size = 26.dp)
     }
 }

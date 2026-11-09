@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -52,6 +53,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
+/** The action revealed by a left swipe. Delete is the default; other actions pass their own. */
+data class SwipeAction(
+    val label: String,
+    val icon: SidekitIcon,
+    val color: Color,
+    val armedColor: Color = color,
+    val destructive: Boolean = false,
+    val onClick: () -> Unit
+)
+
 /** Keeps at most one row of a list swiped open, like iOS. */
 @Stable
 class SwipeRevealGroup {
@@ -72,11 +83,12 @@ private class SwipeMetrics {
 }
 
 /**
- * A list row that swipes left to reveal a delete button (iOS style).
+ * A list row that swipes left to reveal an action button (iOS style). Delete is the default;
+ * pass [action] for a non-destructive action such as Add to queue.
  *
- * - Swipe past half the button and release to leave it open; tap it to delete.
+ * - Swipe past half the button and release to leave it open; tap it to run the action.
  * - Keep dragging past [FULL_SWIPE_FRACTION] of the row and the button stretches to fill it
- *   (with a haptic tick); release there to delete without the extra tap.
+ *   (with a haptic tick); release there to run the action without the extra tap.
  * - Tapping the row while open closes it instead of opening the item.
  * - Opening one row closes any other row in [group].
  *
@@ -88,9 +100,10 @@ private class SwipeMetrics {
 fun SidekitSwipeRow(
     key: Any,
     group: SwipeRevealGroup,
-    onDelete: () -> Unit,
+    onDelete: () -> Unit = {},
     modifier: Modifier = Modifier,
     deleteLabel: String = "Delete",
+    action: SwipeAction? = null,
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -99,6 +112,14 @@ fun SidekitSwipeRow(
     val view = LocalView.current
     val scope = rememberCoroutineScope()
 
+    val swipeAction = action ?: SwipeAction(
+        label = deleteLabel,
+        icon = SidekitIcon.DeleteForever,
+        color = colors.dangerA1,
+        armedColor = colors.dangerA2,
+        destructive = true,
+        onClick = onDelete
+    )
     val buttonPx = with(density) { spacing.itemHeight.toPx() }
     val gapPx = with(density) { spacing.itemOuterGap.toPx() }
     val radiusPx = with(density) { 36.dp.toPx() }
@@ -122,9 +143,9 @@ fun SidekitSwipeRow(
         }
     }
 
-    fun delete() {
+    fun performAction() {
         group.closeAll()
-        onDelete()
+        swipeAction.onClick()
     }
 
     LaunchedEffect(armed) {
@@ -149,7 +170,7 @@ fun SidekitSwipeRow(
         }
     }
 
-    val trash = rememberVectorPainter(ImageVector.vectorResource(SidekitIcon.DeleteForever.drawable))
+    val actionIcon = rememberVectorPainter(ImageVector.vectorResource(swipeAction.icon.drawable))
     val tint = remember(colors.light) { ColorFilter.tint(colors.light) }
 
     Box(
@@ -162,7 +183,7 @@ fun SidekitSwipeRow(
                 val left = size.width - revealed
                 val r = min(radiusPx, min(revealed, size.height) / 2f)
                 drawRoundRect(
-                    color = lerp(colors.dangerA1, colors.dangerA2, a),
+                    color = lerp(swipeAction.color, swipeAction.armedColor, a),
                     topLeft = Offset(left, 0f),
                     size = Size(revealed, size.height),
                     cornerRadius = CornerRadius(r, r),
@@ -173,7 +194,7 @@ fun SidekitSwipeRow(
                 val iconAlpha = ((revealed - iconPx * 0.5f) / iconPx).coerceIn(0f, 1f)
                 val s = iconPx * lerp(0.6f, 1f, iconAlpha) * (1f + 0.15f * a)
                 translate(cx - s / 2f, (size.height - s) / 2f) {
-                    with(trash) { draw(Size(s, s), alpha = iconAlpha, colorFilter = tint) }
+                    with(actionIcon) { draw(Size(s, s), alpha = iconAlpha, colorFilter = tint) }
                 }
             }
             .draggable(
@@ -188,7 +209,7 @@ fun SidekitSwipeRow(
                     dragging = false
                     val width = metrics.width.toFloat()
                     when {
-                        armed -> settle(-width, velocity) { delete() }
+                        armed -> settle(-width, velocity) { performAction() }
                         velocity < -FLING_VELOCITY || (offset < openOffset / 2f && velocity < FLING_VELOCITY) ->
                             settle(openOffset, velocity)
                         else -> {
@@ -199,7 +220,7 @@ fun SidekitSwipeRow(
                 },
             )
             .semantics {
-                customActions = listOf(CustomAccessibilityAction(deleteLabel) { delete(); true })
+                customActions = listOf(CustomAccessibilityAction(swipeAction.label) { performAction(); true })
             },
     ) {
         Box(Modifier.graphicsLayer { translationX = offset }) { content() }
@@ -218,9 +239,11 @@ fun SidekitSwipeRow(
                     Modifier
                         .width(spacing.itemHeight)
                         .fillMaxHeight()
-                        .clickable(role = Role.Button, onClickLabel = deleteLabel, indication = null, interactionSource = null) {
-                            view.performHapticFeedback(HapticFeedbackConstants.REJECT)
-                            delete()
+                        .clickable(role = Role.Button, onClickLabel = swipeAction.label, indication = null, interactionSource = null) {
+                            view.performHapticFeedback(
+                                if (swipeAction.destructive) HapticFeedbackConstants.REJECT else HapticFeedbackConstants.CONTEXT_CLICK
+                            )
+                            performAction()
                         },
                 )
             }

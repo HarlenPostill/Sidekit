@@ -161,7 +161,7 @@ pub fn disconnect() {
     }
 }
 
-pub fn create_player() -> Result<(), String> {
+pub fn create_player(bitrate_kbps: u16) -> Result<(), String> {
     let mut guard = state().lock().map_err(|_| "STATE_LOCK".to_string())?;
     if guard.player.is_some() {
         return Ok(());
@@ -177,8 +177,13 @@ pub fn create_player() -> Result<(), String> {
         .ok_or_else(|| "AUDIO_UNINITIALISED".to_string())?
         .clone();
     let volume = guard.volume.clone();
+    let bitrate = match bitrate_kbps {
+        0..=96 => Bitrate::Bitrate96,
+        97..=160 => Bitrate::Bitrate160,
+        _ => Bitrate::Bitrate320,
+    };
     let config = PlayerConfig {
-        bitrate: Bitrate::Bitrate320,
+        bitrate,
         position_update_interval: Some(Duration::from_millis(500)),
         ..PlayerConfig::default()
     };
@@ -224,13 +229,6 @@ pub fn stop() -> Result<(), String> {
 pub fn seek(position_ms: u32) -> Result<(), String> {
     player()?.seek(position_ms);
     Ok(())
-}
-
-pub fn set_volume(volume: f32) {
-    let level = (volume.clamp(0.0, 1.0) * 65_535.0) as u16;
-    if let Ok(guard) = state().lock() {
-        guard.volume.0.store(level, Ordering::Relaxed);
-    }
 }
 
 pub fn read_audio(timeout: Duration) -> Option<Vec<u8>> {

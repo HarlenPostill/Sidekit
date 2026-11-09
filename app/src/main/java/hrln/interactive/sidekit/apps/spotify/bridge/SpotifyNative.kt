@@ -11,13 +11,12 @@ interface SpotifyNative {
     fun connect(accessToken: String): Boolean
     fun setAccessToken(accessToken: String): Boolean
     fun disconnect()
-    fun createPlayer(): Boolean
+    fun createPlayer(bitrateKbps: Int): Boolean
     fun load(uri: String, positionMs: Long, autoplay: Boolean): Boolean
     fun play(): Boolean
     fun pause(): Boolean
     fun stop(): Boolean
     fun seek(positionMs: Long): Boolean
-    fun setVolume(volume: Float)
     fun readAudio(timeoutMs: Long): ByteArray?
     fun audioFormat(): String?
     fun pollEvent(): String?
@@ -28,4 +27,9 @@ interface SpotifyNative {
     fun catalogAlbumsBy(id: String): String?
     fun catalogTopTracks(id: String): String?
     fun catalogSearch(query: String, scopes: String, limit: Long): String?
+
+    fun collectionContains(set: String, uris: String): String?
+    fun collectionWrite(set: String, uris: String, removed: Boolean): Boolean
+    fun playlistSaved(id: String): String?
+    fun playlistSave(id: String, save: Boolean): Boolean
 }

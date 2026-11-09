@@ -54,27 +54,26 @@ fun SpotifyNowPlayingScreen(
     onQueue: () -> Unit,
     onAlbum: () -> Unit,
     onArtist: () -> Unit,
+    onUndo: () -> Unit,
     onDismissNotice: () -> Unit
 ) {
     val current = state.current
-    val actions = withNotice(
-        state.notice,
+    val save = current?.let {
+        SideAction.square(
+            "save",
+            if (state.savedCurrent) SidekitIcon.Bookmark else SidekitIcon.BookmarkBorder,
+            if (state.savedCurrent) "Saved" else "Save",
+            onSave,
+            tone = if (state.savedCurrent) ActionTone.Secondary else ActionTone.Muted,
+            motion = ActionMotion.Up
+        )
+    }
+    val actions = spotifyBar(
+        state,
         onDismissNotice,
-        buildList {
-            add(spotifyBack("Back", onBack).first())
-            if (current != null) {
-                add(
-                    SideAction.square(
-                        "save",
-                        if (state.savedCurrent) SidekitIcon.Check else SidekitIcon.Bookmark,
-                        if (state.savedCurrent) "Saved" else "Save",
-                        onSave,
-                        tone = if (state.savedCurrent) ActionTone.Secondary else ActionTone.Muted,
-                        motion = ActionMotion.Up
-                    )
-                )
-            }
-        }
+        onUndo,
+        spotifyBack("Back", onBack).first(),
+        listOfNotNull(save)
     )
     val options = if (current == null) {
         emptyList()
@@ -82,7 +81,6 @@ fun SpotifyNowPlayingScreen(
         buildList {
             add(SideAction("queue", "Queue", SidekitIcon.QueueMusic, onClick = onQueue))
             if (current is SpotifyTrack) add(SideAction("album", "Album", SidekitIcon.Album, onClick = onAlbum))
-            if (current.artistId != null) add(SideAction("artist", "Artist", SidekitIcon.Artist, onClick = onArtist))
         }
     }
     SidekitScaffold(title = null, actions = actions, options = options) { padding ->
@@ -152,7 +150,6 @@ fun SpotifyNowPlayingScreen(
                         0.85f
                     )
                 }
-                state.upcoming.firstOrNull()?.let { UpNextRow(it.title, onClick = onQueue) }
             }
         }
     }

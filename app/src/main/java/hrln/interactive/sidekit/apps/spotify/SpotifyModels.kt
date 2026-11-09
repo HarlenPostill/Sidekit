@@ -157,10 +157,10 @@ enum class RepeatMode(val label: String) {
     }
 }
 
-enum class AudioQuality(val label: String) {
-    Normal("Normal"),
-    High("High"),
-    VeryHigh("Very high")
+enum class AudioQuality(val label: String, val bitrateKbps: Int) {
+    Normal("Normal", 96),
+    High("High", 160),
+    VeryHigh("Very high", 320)
     ;
 
     fun next(): AudioQuality = entries[(ordinal + 1) % entries.size]

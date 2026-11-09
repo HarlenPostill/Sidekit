@@ -25,7 +25,7 @@ object NativeBridge : SpotifyNative {
         if (isAvailable) runCatching { nativeDisconnect() }
     }
 
-    override fun createPlayer(): Boolean = isAvailable && runCatching { nativeCreatePlayer() }.getOrDefault(false)
+    override fun createPlayer(bitrateKbps: Int): Boolean = isAvailable && runCatching { nativeCreatePlayer(bitrateKbps) }.getOrDefault(false)
 
     override fun load(uri: String, positionMs: Long, autoplay: Boolean): Boolean = isAvailable && runCatching { nativeLoad(uri, positionMs, autoplay) }.getOrDefault(false)
 
@@ -36,10 +36,6 @@ object NativeBridge : SpotifyNative {
     override fun stop(): Boolean = isAvailable && runCatching { nativeStop() }.getOrDefault(false)
 
     override fun seek(positionMs: Long): Boolean = isAvailable && runCatching { nativeSeek(positionMs) }.getOrDefault(false)
-
-    override fun setVolume(volume: Float) {
-        if (isAvailable) runCatching { nativeSetVolume(volume) }
-    }
 
     override fun readAudio(timeoutMs: Long): ByteArray? = if (isAvailable) runCatching { nativeReadAudio(timeoutMs) }.getOrNull() else null
 
@@ -59,18 +55,25 @@ object NativeBridge : SpotifyNative {
 
     override fun catalogSearch(query: String, scopes: String, limit: Long): String? = if (isAvailable) runCatching { nativeCatalogSearch(query, scopes, limit) }.getOrNull() else null
 
+    override fun collectionContains(set: String, uris: String): String? = if (isAvailable) runCatching { nativeCollectionContains(set, uris) }.getOrNull() else null
+
+    override fun collectionWrite(set: String, uris: String, removed: Boolean): Boolean = isAvailable && runCatching { nativeCollectionWrite(set, uris, removed) }.getOrDefault(false)
+
+    override fun playlistSaved(id: String): String? = if (isAvailable) runCatching { nativePlaylistSaved(id) }.getOrNull() else null
+
+    override fun playlistSave(id: String, save: Boolean): Boolean = isAvailable && runCatching { nativePlaylistSave(id, save) }.getOrDefault(false)
+
     private external fun nativeInit(): Boolean
     private external fun nativeSetTmpDir(path: String)
     private external fun nativeConnect(accessToken: String): Boolean
     private external fun nativeSetAccessToken(accessToken: String): Boolean
     private external fun nativeDisconnect()
-    private external fun nativeCreatePlayer(): Boolean
+    private external fun nativeCreatePlayer(bitrateKbps: Int): Boolean
     private external fun nativeLoad(uri: String, positionMs: Long, autoplay: Boolean): Boolean
     private external fun nativePlay(): Boolean
     private external fun nativePause(): Boolean
     private external fun nativeStop(): Boolean
     private external fun nativeSeek(positionMs: Long): Boolean
-    private external fun nativeSetVolume(volume: Float)
     private external fun nativeReadAudio(timeoutMs: Long): ByteArray?
     private external fun nativeAudioFormat(): String?
     private external fun nativePollEvent(): String?
@@ -80,4 +83,8 @@ object NativeBridge : SpotifyNative {
     private external fun nativeCatalogAlbumsBy(id: String): String?
     private external fun nativeCatalogTopTracks(id: String): String?
     private external fun nativeCatalogSearch(query: String, scopes: String, limit: Long): String?
+    private external fun nativeCollectionContains(set: String, uris: String): String?
+    private external fun nativeCollectionWrite(set: String, uris: String, removed: Boolean): Boolean
+    private external fun nativePlaylistSaved(id: String): String?
+    private external fun nativePlaylistSave(id: String, save: Boolean): Boolean
 }

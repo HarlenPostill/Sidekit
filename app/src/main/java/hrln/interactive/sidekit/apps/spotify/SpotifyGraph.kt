@@ -24,6 +24,7 @@ import hrln.interactive.sidekit.apps.spotify.data.SpotifySessions
 import hrln.interactive.sidekit.design.components.SidekitScaffold
 import hrln.interactive.sidekit.navigation.LAUNCHER_ROUTE
 import hrln.interactive.sidekit.navigation.SubApp
+import hrln.interactive.sidekit.ui.UndoWindowLifecycle
 
 private val ROOT = SubApp.Sidetracks.route
 private val HOME = "$ROOT/home"
@@ -62,6 +63,8 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                 onSettings = { nav.navigate(SETTINGS) },
                 onRefresh = vm::refresh,
                 onPlay = vm::playLibraryTrack,
+                onQueue = { nav.navigate(QUEUE) },
+                onQueueTrack = vm::addToQueue,
                 onDismissNotice = vm::dismissNotice
             )
         }
@@ -73,7 +76,11 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                 onBack = { nav.popBackStack() },
                 onSearch = { nav.navigate(SEARCH) },
                 onFilter = vm::setFilter,
-                onTrack = vm::playItem,
+                onTrack = {
+                    vm.playItem(it)
+                    nav.navigate(NOW_PLAYING)
+                },
+                onQueue = vm::addToQueue,
                 onPlaylist = { nav.navigate(collectionRoute(SpotifyCollectionType.Playlist, it.id)) },
                 onAlbum = { nav.navigate(collectionRoute(SpotifyCollectionType.Album, it.id)) },
                 onArtist = { nav.navigate(artistRoute(it.id)) },
@@ -84,6 +91,7 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
         composable(COLLECTION, arguments = collectionArgs) { entry ->
             val vm = entry.spotifyViewModel(nav)
             val state by vm.state.collectAsStateWithLifecycle()
+            UndoWindowLifecycle(vm.undoWindow, vm::commitUndo)
             val type = SpotifyCollectionType.entries.firstOrNull { it.route == entry.arguments?.getString("type") }
             val id = entry.arguments?.getString("id").orEmpty()
             LaunchedEffect(type, id) { type?.let { vm.ensureCollection(it, id) } }
@@ -102,7 +110,9 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                         collection.artistId?.let { nav.navigate(artistRoute(it)) } ?: vm.notice("This collection has no artist page")
                     },
                     onQueue = { collection.items.firstOrNull()?.let(vm::addToQueue) },
+                    onQueueItem = vm::addToQueue,
                     onNowPlaying = { nav.navigate(NOW_PLAYING) },
+                    onUndo = vm::undo,
                     onDismissNotice = vm::dismissNotice
                 )
             }
@@ -110,6 +120,7 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
         composable(ARTIST, arguments = artistArgs) { entry ->
             val vm = entry.spotifyViewModel(nav)
             val state by vm.state.collectAsStateWithLifecycle()
+            UndoWindowLifecycle(vm.undoWindow, vm::commitUndo)
             val artistId = entry.arguments?.getString("id").orEmpty()
             LaunchedEffect(artistId) { vm.ensureArtist(artistId) }
             val artist = vm.artist(artistId)
@@ -126,9 +137,11 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                     onBack = { nav.popBackStack() },
                     onPlay = { vm.playArtist(artist) },
                     onTrack = { vm.play(tracks, tracks.indexOf(it)) },
+                    onQueue = vm::addToQueue,
                     onAlbum = { nav.navigate(collectionRoute(SpotifyCollectionType.Album, it.id)) },
                     onFollow = { vm.toggleFollow(artist) },
                     onNowPlaying = { nav.navigate(NOW_PLAYING) },
+                    onUndo = vm::undo,
                     onDismissNotice = vm::dismissNotice
                 )
             }
@@ -143,6 +156,7 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                 onClear = vm::clearQuery,
                 onToggleScope = vm::toggleScope,
                 onTrack = vm::playItem,
+                onQueue = vm::addToQueue,
                 onArtist = { nav.navigate(artistRoute(it.id)) },
                 onAlbum = { nav.navigate(collectionRoute(SpotifyCollectionType.Album, it.id)) },
                 onPlaylist = { nav.navigate(collectionRoute(SpotifyCollectionType.Playlist, it.id)) },
@@ -153,6 +167,7 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
         composable(NOW_PLAYING) { entry ->
             val vm = entry.spotifyViewModel(nav)
             val state by vm.state.collectAsStateWithLifecycle()
+            UndoWindowLifecycle(vm.undoWindow, vm::commitUndo)
             SpotifyNowPlayingScreen(
                 state,
                 onBack = { nav.popBackStack() },
@@ -172,6 +187,7 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                 onArtist = {
                     state.current?.artistId?.let { nav.navigate(artistRoute(it)) }
                 },
+                onUndo = vm::undo,
                 onDismissNotice = vm::dismissNotice
             )
         }
@@ -181,7 +197,11 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
             QueueScreen(
                 state,
                 onBack = { nav.popBackStack() },
-                onNowPlaying = { nav.popBackStack(NOW_PLAYING, inclusive = false) },
+                onNowPlaying = {
+                    if (!nav.popBackStack(NOW_PLAYING, inclusive = false)) {
+                        nav.navigate(NOW_PLAYING) { launchSingleTop = true }
+                    }
+                },
                 onJump = vm::jumpTo,
                 onPlayNext = vm::moveToNext,
                 onRemove = vm::removeUpcoming,
@@ -198,7 +218,6 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                 state,
                 onBack = { nav.popBackStack() },
                 onAudioQuality = vm::cycleAudioQuality,
-                onVolume = vm::setVolume,
                 onClearCache = vm::clearCache,
                 onClearHistory = vm::clearHistory,
                 onSignOut = {
@@ -264,6 +283,9 @@ private fun NavBackStackEntry.spotifyViewModel(nav: NavHostController): SpotifyV
                 initializer {
                     SpotifyViewModel(
                         catalog = session.catalog,
+                        writer = session.writer,
+                        queue = session.queue,
+                        history = session.history,
                         session = session,
                         openBrowser = openBrowser,
                         clearArtworkCache = { RemoteArtwork.clear(context) }

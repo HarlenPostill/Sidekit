@@ -22,3 +22,16 @@ interface SpotifyCatalog {
     suspend fun topTracks(artist: SpotifyArtist): List<SpotifyTrack>
     suspend fun search(query: String, scopes: Set<SearchScope>): SpotifySearchResults
 }
+
+/**
+ * Write side of the user's Spotify library. Kept separate from [SpotifyCatalog] so read-only
+ * fallbacks and test catalogs do not have to pretend they can mutate an account.
+ */
+interface SpotifyLibraryWriter {
+    suspend fun isTrackSaved(id: String): Boolean?
+    suspend fun isSaved(type: SpotifyCollectionType, id: String): Boolean?
+    suspend fun isArtistFollowed(id: String): Boolean?
+    suspend fun setTrackSaved(id: String, saved: Boolean)
+    suspend fun setSaved(type: SpotifyCollectionType, id: String, saved: Boolean)
+    suspend fun setArtistFollowed(id: String, followed: Boolean)
+}

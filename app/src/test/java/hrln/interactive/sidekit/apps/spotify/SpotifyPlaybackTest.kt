@@ -99,7 +99,6 @@ class SpotifyPlaybackTest {
         }
 
         override suspend fun seek(positionMs: Long) = Unit
-        override suspend fun setVolume(volume: Float) = Unit
     }
 
     private class FakeOwner : MediaSessionOwner {

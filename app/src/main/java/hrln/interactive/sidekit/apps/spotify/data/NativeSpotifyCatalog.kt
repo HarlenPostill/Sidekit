@@ -26,7 +26,8 @@ import org.json.JSONObject
 class NativeSpotifyCatalog(
     private val native: SpotifyNative,
     private val ensureSession: suspend () -> Unit
-) : SpotifyCatalog {
+) : SpotifyCatalog,
+    SpotifyLibraryWriter {
     /** The protocol has no safe recently-played endpoint; the ViewModel falls back to local history. */
     override suspend fun recentlyPlayed(): List<SpotifyTrack> = emptyList()
 
@@ -71,6 +72,58 @@ class NativeSpotifyCatalog(
             playlists = json.optJSONArray("playlists").playlists(),
             shows = json.optJSONArray("shows").shows()
         )
+    }
+
+    override suspend fun isTrackSaved(id: String): Boolean? = contains("collection", "spotify:track:$id")
+
+    override suspend fun isSaved(type: SpotifyCollectionType, id: String): Boolean? = when (type) {
+        SpotifyCollectionType.Album -> contains("collection", "spotify:album:$id")
+        SpotifyCollectionType.Show -> contains("show", "spotify:show:$id")
+        SpotifyCollectionType.Playlist -> playlistSaved(id)
+    }
+
+    override suspend fun isArtistFollowed(id: String): Boolean? = contains("artist", "spotify:artist:$id")
+
+    override suspend fun setTrackSaved(id: String, saved: Boolean) = writeCollection("collection", "spotify:track:$id", saved)
+
+    override suspend fun setSaved(type: SpotifyCollectionType, id: String, saved: Boolean) {
+        when (type) {
+            SpotifyCollectionType.Album -> writeCollection("collection", "spotify:album:$id", saved)
+            SpotifyCollectionType.Show -> writeCollection("show", "spotify:show:$id", saved)
+            SpotifyCollectionType.Playlist -> writePlaylist(id, saved)
+        }
+    }
+
+    override suspend fun setArtistFollowed(id: String, followed: Boolean) = writeCollection("artist", "spotify:artist:$id", followed)
+
+    private suspend fun contains(set: String, uri: String): Boolean? {
+        val text = callText {
+            native.collectionContains(set, JSONArray(listOf(uri)).toString())
+        }
+        return runCatching { JSONArray(text).optBoolean(0) }.getOrNull()
+    }
+
+    private suspend fun playlistSaved(id: String): Boolean? {
+        val text = callText { native.playlistSaved(id) }
+        return runCatching { text.toBooleanStrict() }.getOrNull()
+    }
+
+    private suspend fun writeCollection(set: String, uri: String, saved: Boolean) {
+        withContext(Dispatchers.IO) {
+            ensureSession()
+            if (!native.collectionWrite(set, JSONArray(listOf(uri)).toString(), !saved)) {
+                fail(SpotifyFailure.Network, "Spotify didn't accept the library change")
+            }
+        }
+    }
+
+    private suspend fun writePlaylist(id: String, saved: Boolean) {
+        withContext(Dispatchers.IO) {
+            ensureSession()
+            if (!native.playlistSave(id, saved)) {
+                fail(SpotifyFailure.Network, "Spotify didn't accept the library change")
+            }
+        }
     }
 
     private suspend fun call(block: () -> String?): JSONObject {

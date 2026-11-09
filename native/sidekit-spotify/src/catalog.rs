@@ -20,10 +20,13 @@ use librespot_protocol::extended_metadata::{
     BatchedEntityRequest, BatchedExtensionResponse, EntityRequest, ExtensionQuery,
 };
 use librespot_protocol::extension_kind::ExtensionKind;
-use librespot_protocol::playlist4_external::SelectedListContent;
-use protobuf::{EnumOrUnknown, Message};
+use librespot_protocol::playlist4_external::{
+    Add, Delta, Item as PlaylistItem, ListChanges, Op, Rem, SelectedListContent,
+};
+use protobuf::{EnumOrUnknown, Message, MessageField};
 use serde::Serialize;
 use serde_json::{json, Value};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const PATHFINDER_BASE: &str = "https://api-partner.spotify.com";
 const SEARCH_QUERY_HASH: &str = "d9f785900f0710b31c07818d617f4f7600c1e21217e80f5b043d1e78d74e6026";
@@ -1104,6 +1107,202 @@ async fn rootlist_playlists(
         }
     }
     Ok(playlists)
+}
+
+
+fn collection_item_bytes(uri: &str, added_at: i32, removed: bool) -> Vec<u8> {
+    let mut item = Vec::new();
+    put_string(&mut item, 1, uri);
+    if added_at > 0 {
+        put_varint(&mut item, (2 << 3) as u64);
+        put_varint(&mut item, added_at as u64);
+    }
+    if removed {
+        put_varint(&mut item, (3 << 3) as u64);
+        put_varint(&mut item, 1);
+    }
+    item
+}
+
+fn collection_body(username: &str, set: &str, uris: &[String], removed: bool) -> Vec<u8> {
+    let mut body = Vec::new();
+    put_string(&mut body, 1, username);
+    put_string(&mut body, 2, set);
+    let added_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs() as i32)
+        .unwrap_or(0);
+    for uri in uris {
+        let item = collection_item_bytes(uri, if removed { 0 } else { added_at }, removed);
+        put_varint(&mut body, ((3 << 3) | 2) as u64);
+        put_varint(&mut body, item.len() as u64);
+        body.extend_from_slice(&item);
+    }
+    body
+}
+
+fn parse_contains(bytes: &[u8]) -> Vec<bool> {
+    let mut found = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        let Some(key) = read_varint(bytes, &mut index) else {
+            break;
+        };
+        let field = (key >> 3) as u32;
+        let wire = (key & 7) as u8;
+        match (field, wire) {
+            (1, 0) => {
+                let Some(value) = read_varint(bytes, &mut index) else {
+                    break;
+                };
+                found.push(value != 0);
+            }
+            (_, 0) => {
+                let _ = read_varint(bytes, &mut index);
+            }
+            (_, 1) => index += 8,
+            (_, 2) => {
+                let Some(len) = read_varint(bytes, &mut index) else {
+                    break;
+                };
+                index += len as usize;
+            }
+            (_, 5) => index += 4,
+            _ => break,
+        }
+    }
+    found
+}
+
+/// Answers in the order of `uris`; used to seed the optimistic save state before a toggle.
+pub async fn collection_contains(
+    session: &Session,
+    token: &str,
+    set: &str,
+    uris: &[String],
+) -> Result<String, String> {
+    let body = collection_body(&session.username(), set, uris, false);
+    let bytes = sp_request(
+        session,
+        token,
+        Method::POST,
+        "/collection/v2/contains",
+        Some("application/vnd.collection-v2.spotify.proto"),
+        &body,
+    )
+    .await?;
+    let found = parse_contains(&bytes);
+    if found.len() != uris.len() {
+        return Err("collection contains returned the wrong number of results".to_string());
+    }
+    serde_json::to_string(&found).map_err(|e| e.to_string())
+}
+
+/// Adds or removes items from a collection set. `is_removed` marks a removal.
+pub async fn collection_write(
+    session: &Session,
+    token: &str,
+    set: &str,
+    uris: &[String],
+    removed: bool,
+) -> Result<(), String> {
+    let body = collection_body(&session.username(), set, uris, removed);
+    sp_request(
+        session,
+        token,
+        Method::POST,
+        "/collection/v2/write",
+        Some("application/vnd.collection-v2.spotify.proto"),
+        &body,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn rootlist_content(session: &Session, token: &str) -> Result<SelectedListContent, String> {
+    let user = session.username();
+    let endpoint = format!(
+        "/playlist/v2/user/{user}/rootlist?decorate=revision,attributes,length,owner,capabilities,status_code&from=0&length=500"
+    );
+    let bytes = sp_request(session, token, Method::GET, &endpoint, None, &[])
+        .await
+        .map_err(|e| format!("rootlist: {e}"))?;
+    SelectedListContent::parse_from_bytes(&bytes).map_err(|e| e.to_string())
+}
+
+pub async fn playlist_saved(session: &Session, token: &str, id: &str) -> Result<bool, String> {
+    let uri = uri_of(id, "playlist");
+    let content = rootlist_content(session, token).await?;
+    Ok(content
+        .contents
+        .as_ref()
+        .is_some_and(|items| items.items.iter().any(|item| item.uri() == uri)))
+}
+
+/// Adds or removes a playlist from the user's rootlist (the "Your Library" playlist list).
+pub async fn playlist_save(
+    session: &Session,
+    token: &str,
+    id: &str,
+    save: bool,
+) -> Result<(), String> {
+    let uri = uri_of(id, "playlist");
+    let content = rootlist_content(session, token).await?;
+    let index = content
+        .contents
+        .as_ref()
+        .and_then(|items| items.items.iter().position(|item| item.uri() == uri));
+    if save == index.is_some() {
+        return Ok(());
+    }
+
+    let mut changes = ListChanges::new();
+    changes.base_revision = content.revision.clone();
+    let mut delta = Delta::new();
+    if save {
+        let item = PlaylistItem {
+            uri: Some(uri),
+            ..Default::default()
+        };
+        let add = Add {
+            items: vec![item],
+            add_last: Some(true),
+            ..Default::default()
+        };
+        delta.ops.push(Op {
+            kind: Some(EnumOrUnknown::new(
+                librespot_protocol::playlist4_external::op::Kind::ADD,
+            )),
+            add: MessageField::some(add),
+            ..Default::default()
+        });
+    } else {
+        let rem = Rem {
+            from_index: Some(index.unwrap_or(0) as i32),
+            length: Some(1),
+            ..Default::default()
+        };
+        delta.ops.push(Op {
+            kind: Some(EnumOrUnknown::new(
+                librespot_protocol::playlist4_external::op::Kind::REM,
+            )),
+            rem: MessageField::some(rem),
+            ..Default::default()
+        });
+    }
+    changes.deltas.push(delta);
+    let body = changes.write_to_bytes().map_err(|e| e.to_string())?;
+    let user = session.username();
+    sp_request(
+        session,
+        token,
+        Method::POST,
+        &format!("/playlist/v2/user/{user}/rootlist/changes"),
+        Some("application/x-www-form-urlencoded"),
+        &body,
+    )
+    .await?;
+    Ok(())
 }
 
 pub async fn library(session: &Session, token: &str, filter: &str) -> Result<String, String> {

@@ -1,6 +1,7 @@
 package hrln.interactive.sidekit.apps.spotify.data
 
 import android.content.Context
+import hrln.interactive.sidekit.apps.spotify.AudioQuality
 import hrln.interactive.sidekit.apps.spotify.auth.EncryptedSpotifyCredentialStore
 import hrln.interactive.sidekit.apps.spotify.auth.SpotifyAuth
 import hrln.interactive.sidekit.apps.spotify.bridge.NativeBridge
@@ -12,6 +13,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -20,15 +23,20 @@ import kotlinx.coroutines.withContext
  */
 class SpotifySession(
     private val auth: SpotifyAuth = SpotifyAuth(NoopCredentialStore),
-    private val tmpDir: String? = null
+    private val tmpDir: String? = null,
+    context: Context? = null
 ) {
     private val _signedIn = MutableStateFlow(auth.hasCredentials())
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
 
+    private val settingsStore = context?.let { SpotifySettingsStore(it.applicationContext) }
+    private val _settings = MutableStateFlow(settingsStore?.read() ?: SpotifySettings())
+    val settings: StateFlow<SpotifySettings> = _settings.asStateFlow()
+
     val nativeAvailable: Boolean get() = NativeBridge.isAvailable
 
     private val nativeGateway by lazy {
-        NativeSpotifyGateway(NativeBridge) { accessToken() }
+        NativeSpotifyGateway(NativeBridge, { _settings.value }, { accessToken() })
     }
     val gateway: SpotifyGateway get() = nativeGateway
 
@@ -36,13 +44,19 @@ class SpotifySession(
     val catalog: SpotifyCatalog by lazy {
         if (nativeAvailable) NativeSpotifyCatalog(NativeBridge) { nativeGateway.ensureSession() } else SpotifyWebCatalog(webApi)
     }
+    val writer: SpotifyLibraryWriter? get() = catalog as? SpotifyLibraryWriter
+
+    /** Process-wide queue and history so leaving Sidetracks does not forget what is playing. */
+    val queue = SpotifyQueueRepository()
+    val history = SpotifyHistoryRepository()
 
     private val playbackScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val playback: SpotifyPlayback by lazy {
         SpotifyPlayback(
             gateway = nativeGateway,
             scope = playbackScope,
-            audio = SpotifyAudioSink(NativeBridge, playbackScope)
+            audio = SpotifyAudioSink(NativeBridge, playbackScope),
+            context = context?.applicationContext
         )
     }
 
@@ -59,8 +73,19 @@ class SpotifySession(
     }
 
     fun signOut() {
-        nativeGateway.reset()
-        NativeBridge.disconnect()
+        queue.stop()
+        history.clear()
+        if (nativeAvailable) {
+            playback.setNowPlaying(null)
+            playback.pause()
+            // Stop the decoder immediately; waiting for the coroutine below leaves a window in
+            // which the current track keeps playing after the credentials have been cleared.
+            NativeBridge.stop()
+            playbackScope.launch { runCatching { playback.disconnect() } }
+        } else {
+            nativeGateway.reset()
+            NativeBridge.disconnect()
+        }
         auth.clear()
         _signedIn.value = false
     }
@@ -84,7 +109,22 @@ class SpotifySession(
 
     suspend fun accessToken(): String? = auth.accessToken()
 
-    suspend fun setVolume(volume: Float) = playback.setVolume(volume)
+    fun setAudioQuality(quality: AudioQuality) {
+        _settings.update { it.copy(audioQuality = quality) }
+        settingsStore?.write(_settings.value)
+    }
+
+    fun togglePlayback() {
+        if (playback.isActive) {
+            playback.pause()
+        } else {
+            playbackScope.launch { runCatching { resume() } }
+        }
+    }
+
+    fun stopPlayback() {
+        playbackScope.launch { runCatching { playback.stop() } }
+    }
 
     /** One librespot player event, or null when nothing has happened since the last poll. */
     fun pollPlaybackEvent(): String? = if (nativeAvailable) NativeBridge.pollEvent() else null
@@ -104,7 +144,8 @@ object SpotifySessions {
     fun get(context: Context): SpotifySession = instance ?: synchronized(this) {
         instance ?: SpotifySession(
             SpotifyAuth(EncryptedSpotifyCredentialStore(context.applicationContext)),
-            context.applicationContext.cacheDir.absolutePath
+            context.applicationContext.cacheDir.absolutePath,
+            context.applicationContext
         ).also { instance = it }
     }
 }

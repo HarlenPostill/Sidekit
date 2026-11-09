@@ -21,8 +21,11 @@ import hrln.interactive.sidekit.design.action.ActionTone
 import hrln.interactive.sidekit.design.action.SideAction
 import hrln.interactive.sidekit.design.components.SidekitList
 import hrln.interactive.sidekit.design.components.SidekitScaffold
+import hrln.interactive.sidekit.design.components.SidekitSwipeRow
 import hrln.interactive.sidekit.design.components.SidekitTextField
+import hrln.interactive.sidekit.design.components.SwipeAction
 import hrln.interactive.sidekit.design.components.listFade
+import hrln.interactive.sidekit.design.components.rememberSwipeRevealGroup
 import hrln.interactive.sidekit.design.icons.SidekitIcon
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 
@@ -34,6 +37,7 @@ fun SpotifySearchScreen(
     onClear: () -> Unit,
     onToggleScope: (SearchScope) -> Unit,
     onTrack: (SpotifyTrack) -> Unit,
+    onQueue: (SpotifyTrack) -> Unit,
     onArtist: (SpotifyArtist) -> Unit,
     onAlbum: (SpotifyAlbum) -> Unit,
     onPlaylist: (SpotifyPlaylist) -> Unit,
@@ -83,6 +87,7 @@ fun SpotifySearchScreen(
         options = scopes
     ) { padding ->
         val listState = rememberLazyListState()
+        val swipes = rememberSwipeRevealGroup()
         SidekitList(padding, state = listState) {
             when {
                 state.query.isBlank() -> item(key = "idle") {
@@ -107,7 +112,20 @@ fun SpotifySearchScreen(
                         item(key = "tracksLabel") { SectionLabel("Tracks") }
                         val shown = if (expandedTracks) results.tracks else results.tracks.take(5)
                         itemsIndexed(shown, key = { _, track -> "t${track.id}" }) { index, track ->
-                            SpotifyMediaRow(track, Modifier.listFade(listState, slot + index), secondary = track.artist) { onTrack(track) }
+                            SidekitSwipeRow(
+                                key = track.id,
+                                group = swipes,
+                                modifier = Modifier.listFade(listState, slot + index),
+                                action = SwipeAction(
+                                    label = "Add ${track.title} to queue",
+                                    icon = SidekitIcon.QueueMusic,
+                                    color = SidekitTheme.colors.primaryA1,
+                                    armedColor = SidekitTheme.colors.primaryA2,
+                                    onClick = { onQueue(track) }
+                                )
+                            ) {
+                                SpotifyMediaRow(track, Modifier, secondary = track.artist) { onTrack(track) }
+                            }
                         }
                         slot += shown.size
                         if (!expandedTracks && results.tracks.size > 5) {

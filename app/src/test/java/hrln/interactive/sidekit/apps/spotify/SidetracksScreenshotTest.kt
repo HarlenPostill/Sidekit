@@ -46,6 +46,8 @@ class SidetracksScreenshotTest {
             onSettings = {},
             onRefresh = {},
             onPlay = {},
+            onQueue = {},
+            onQueueTrack = {},
             onDismissNotice = {}
         )
     }
@@ -57,6 +59,7 @@ class SidetracksScreenshotTest {
             onSearch = {},
             onFilter = {},
             onTrack = {},
+            onQueue = {},
             onPlaylist = {},
             onAlbum = {},
             onArtist = {},
@@ -75,7 +78,9 @@ class SidetracksScreenshotTest {
             onSave = {},
             onArtist = {},
             onQueue = {},
+            onQueueItem = {},
             onNowPlaying = {},
+            onUndo = {},
             onDismissNotice = {}
         )
     }
@@ -90,9 +95,11 @@ class SidetracksScreenshotTest {
             onBack = {},
             onPlay = {},
             onTrack = {},
+            onQueue = {},
             onAlbum = {},
             onFollow = {},
             onNowPlaying = {},
+            onUndo = {},
             onDismissNotice = {}
         )
     }
@@ -105,6 +112,7 @@ class SidetracksScreenshotTest {
             onClear = {},
             onToggleScope = {},
             onTrack = {},
+            onQueue = {},
             onArtist = {},
             onAlbum = {},
             onPlaylist = {},
@@ -127,6 +135,7 @@ class SidetracksScreenshotTest {
             onQueue = {},
             onAlbum = {},
             onArtist = {},
+            onUndo = {},
             onDismissNotice = {}
         )
     }
@@ -151,7 +160,6 @@ class SidetracksScreenshotTest {
             state,
             onBack = {},
             onAudioQuality = {},
-            onVolume = {},
             onClearCache = {},
             onClearHistory = {},
             onSignOut = {},

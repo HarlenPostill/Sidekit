@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
  */
 class NativeSpotifyGateway(
     private val native: SpotifyNative,
+    private val settings: () -> SpotifySettings = { SpotifySettings() },
     private val accessToken: suspend () -> String?
 ) : SpotifyGateway {
     @Volatile
@@ -25,12 +26,7 @@ class NativeSpotifyGateway(
         requireNative()
         if (connected) return@onIo
         connectSession(accessToken)
-        if (!native.createPlayer()) {
-            native.disconnect()
-            sessionConnected = false
-            fail(SpotifyFailure.Unknown, "Could not create the player")
-        }
-        connected = true
+        createPlayer()
     }
 
     override suspend fun disconnect() = onIo {
@@ -65,11 +61,6 @@ class NativeSpotifyGateway(
         if (!native.seek(positionMs)) fail(SpotifyFailure.NotConnected, "Playback is not ready")
     }
 
-    override suspend fun setVolume(volume: Float) = onIo {
-        requireNative()
-        native.setVolume(volume)
-    }
-
     /** Forgets the native session after it has been torn down outside this gateway. */
     fun reset() {
         connected = false
@@ -80,6 +71,21 @@ class NativeSpotifyGateway(
     /** Connects with the current stored token, refreshing it first when needed. */
     suspend fun ensureConnected() {
         val token = accessToken() ?: fail(SpotifyFailure.AuthenticationExpired, "Sign in again")
+        if (!connected) {
+            connect(token)
+            return
+        }
+        if (token == sessionToken) return
+        // The OAuth token rotates every hour. Mutate the existing session instead of reconnecting
+        // unless native code reports that the session itself has gone away.
+        val updated = withContext(Dispatchers.IO) { native.setAccessToken(token) }
+        if (updated) {
+            sessionToken = token
+            return
+        }
+        connected = false
+        sessionConnected = false
+        sessionToken = null
         connect(token)
     }
 
@@ -106,6 +112,17 @@ class NativeSpotifyGateway(
         if (!native.connect(token)) fail(SpotifyFailure.AuthenticationExpired, "Could not connect")
         sessionConnected = true
         sessionToken = token
+    }
+
+    private fun createPlayer() {
+        val current = settings()
+        if (!native.createPlayer(current.bitrateKbps)) {
+            native.disconnect()
+            sessionConnected = false
+            sessionToken = null
+            fail(SpotifyFailure.Unknown, "Could not create the player")
+        }
+        connected = true
     }
 
     private fun requireNative() {

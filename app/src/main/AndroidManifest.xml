@@ -228,6 +228,11 @@
             android:name=".apps.music.MusicService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <!-- Sidetracks uses its own notification slot so local Music and Spotify never share one. -->
+        <service
+            android:name=".apps.spotify.playback.SpotifyPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
         <receiver android:name=".apps.health.StepRolloverReceiver" android:exported="false" />
     </application>
 

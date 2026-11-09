@@ -42,6 +42,16 @@ class SpotifyQueueRepositoryTest {
         assertEquals(listOf("c", "b", "d"), queue.snapshot.upcoming.map { it.id })
     }
 
+    @Test fun `restore adopts a process-wide snapshot`() {
+        val queue = SpotifyQueueRepository(Random(1))
+        val snapshot = queue.play(tracks, 1)
+
+        val restored = SpotifyQueueRepository(Random(2)).restore(snapshot)
+
+        assertEquals("b", restored.current?.id)
+        assertEquals(listOf("c", "d"), restored.upcoming.map { it.id })
+    }
+
     @Test fun `add to queue appends`() {
         val queue = SpotifyQueueRepository(Random(1))
         queue.play(tracks, 0)

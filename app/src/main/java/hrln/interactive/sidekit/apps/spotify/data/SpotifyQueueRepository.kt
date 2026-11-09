@@ -25,6 +25,12 @@ class SpotifyQueueRepository(private val random: Random = Random.Default) {
     var snapshot: Snapshot = Snapshot()
         private set
 
+    /** Replaces the queue, used when a new ViewModel adopts the process-wide playback state. */
+    fun restore(snapshot: Snapshot): Snapshot {
+        this.snapshot = snapshot
+        return snapshot
+    }
+
     private var shuffleBackup: List<SpotifyMediaItem>? = null
 
     /**
