@@ -110,8 +110,11 @@ class SpotifySession(
         _signedIn.value = false
     }
 
-    /** Connects librespot with the current access token, creating the one player on first use. */
-    suspend fun ensurePlaybackConnected() = nativeGateway.ensureConnected()
+    /**
+     * Connects librespot with the current access token, creating the one player on first use.
+     * Returns true when the native session had to be rebuilt, which discards the loaded track.
+     */
+    suspend fun ensurePlaybackConnected(): Boolean = nativeGateway.ensureConnected()
 
     suspend fun play(uri: String, positionMs: Long = 0L) {
         ensurePlaybackConnected()
@@ -119,8 +122,15 @@ class SpotifySession(
     }
 
     suspend fun resume() {
-        ensurePlaybackConnected()
-        withContext(Dispatchers.Main.immediate) { playback.resume() }
+        val rebuilt = ensurePlaybackConnected()
+        // A rebuilt session starts from an empty native player. Reload the current item instead of
+        // asking the player to resume a track it no longer has.
+        val uri = playback.current?.uri
+        if (rebuilt && uri != null) {
+            withContext(Dispatchers.Main.immediate) { playback.start(uri, playback.position) }
+        } else {
+            withContext(Dispatchers.Main.immediate) { playback.resume() }
+        }
     }
 
     suspend fun seek(positionMs: Long) = playback.seek(positionMs)
