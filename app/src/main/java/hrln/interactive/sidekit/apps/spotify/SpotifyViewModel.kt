@@ -292,8 +292,16 @@ class SpotifyViewModel(
         if (item.uri == null || session == null) return
         viewModelScope.launch {
             try {
-                if (play) session.resume() else session.pause()
-                session.playback.updateState(play, _state.value.positionMs)
+                if (play && session.playback.current == null) {
+                    // A restored queue outlives the native player. Start the current item instead
+                    // of resuming a source that no longer exists.
+                    startRemote(item, 0L)
+                } else if (play) {
+                    session.resume()
+                } else {
+                    session.pause()
+                }
+                session.playback.updateState(play, if (play) _state.value.positionMs else s.positionMs)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -547,6 +555,18 @@ class SpotifyViewModel(
 
     fun removeUpcoming(item: SpotifyMediaItem) {
         applyQueue(queue.removeUpcoming(item))
+    }
+
+    fun removeHistory(item: SpotifyMediaItem) {
+        history.remove(item)
+        val snapshot = queue.removeHistory(item)
+        applyQueue(snapshot)
+        _state.update {
+            it.copy(
+                recent = history.items().filterIsInstance<SpotifyTrack>(),
+                notice = "${item.title} removed from history"
+            )
+        }
     }
 
     fun addToQueue(item: SpotifyMediaItem) {

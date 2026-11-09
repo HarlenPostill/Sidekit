@@ -144,6 +144,17 @@ class SpotifyQueueRepositoryTest {
         assertEquals(listOf("d"), queue.snapshot.upcoming.map { it.id })
     }
 
+    @Test fun `removing history only drops the chosen item`() {
+        val queue = SpotifyQueueRepository(Random(1))
+        queue.play(tracks, 0)
+        queue.next(auto = false)
+        queue.next(auto = false)
+
+        queue.removeHistory(track("a"))
+
+        assertEquals(listOf("b"), queue.snapshot.history.map { it.id })
+    }
+
     @Test fun `clearing upcoming can be undone`() {
         val queue = SpotifyQueueRepository(Random(1))
         queue.play(tracks, 0)

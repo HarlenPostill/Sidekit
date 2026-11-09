@@ -67,6 +67,9 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 - Playback is process-wide. Queue and local history live on `SpotifySession`; a recreated
   ViewModel adopts the live item, position, and playing state. Starting a new item releases the
   previous `AudioTrack`.
+- Queue, queue history, shuffle order, repeat mode, and recently played persist across process
+  death in atomic binary files (`sidetracks-queue.bin`, `sidetracks-history.bin`). Playback
+  itself does not resume on launch.
 - Foreground `mediaPlayback` service and platform `MediaSession` keep librespot alive with the
   screen off. Notification shows artwork, title, artist, and previous/play-pause/next. When the
   ViewModel is gone, next/previous fall back to advancing the process-wide queue directly.
@@ -82,7 +85,9 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 - Artwork is memory-safe on device: 300 px URL preference, `RGB_565` + `inSampleSize`, 1024 px
   cap, `OutOfMemoryError` treated as a cache miss.
 - Home's action bar opens the queue; track rows across the app expose Add to queue on left swipe.
-  Library uses the standard single-line header; Settings has one sign-out action in the bar.
+  Upcoming and History rows in the queue swipe left to remove; removing queue history also drops
+  the item from recently played. Library uses the standard single-line header; Settings has one
+  sign-out action in the bar.
 
 **Verified**
 
@@ -98,7 +103,8 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 1. **No recently-played protocol endpoint.** `NativeSpotifyCatalog.recentlyPlayed()` returns
    empty; Home falls back to local history.
 2. **Local queue ownership.** librespot plays one item at a time; Sidekit drives queue, shuffle,
-   and repeat. Queue and history survive leaving the app but not process death.
+   and repeat. Queue, queue history, and recently played persist; playback does not resume
+   automatically after process death.
 3. **Playlist owner names.** Followed playlists show the owner's Spotify username.
 4. **Hard read limits.** Collection 500, playlist tracks 100, show episodes 50, artist albums 50,
    search 20. These truncate silently today.
@@ -110,9 +116,7 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 Close these before proposing the branch for merge. They are correctness/contract issues, not
 parity work.
 
-1. **Queue/history persistence.** Persist across process death using the existing atomic-file
-   convention, or state the limitation explicitly in the PR.
-2. **Service/audio-focus instrumentation.** Cover the foreground service, media session,
+1. **Service/audio-focus instrumentation.** Cover the foreground service, media session,
    audio-focus hand-off, and headphone unplug on Android. Current tests cover JVM seams and
    screenshots only.
 

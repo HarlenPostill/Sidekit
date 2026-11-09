@@ -234,6 +234,7 @@ fun NavGraphBuilder.sidetracksGraph(nav: NavHostController) {
                 onJump = vm::jumpTo,
                 onPlayNext = vm::moveToNext,
                 onRemove = vm::removeUpcoming,
+                onRemoveHistory = vm::removeHistory,
                 onClearUpcoming = vm::clearUpcoming,
                 onRestoreUpcoming = vm::restoreUpcoming,
                 onShuffle = vm::toggleShuffle,

@@ -148,6 +148,7 @@ class SidetracksScreenshotTest {
             onJump = {},
             onPlayNext = {},
             onRemove = {},
+            onRemoveHistory = {},
             onClearUpcoming = { emptyList() },
             onRestoreUpcoming = {},
             onShuffle = {},

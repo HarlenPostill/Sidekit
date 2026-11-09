@@ -9,6 +9,7 @@ import hrln.interactive.sidekit.apps.spotify.auth.SpotifyAuth
 import hrln.interactive.sidekit.apps.spotify.bridge.NativeBridge
 import hrln.interactive.sidekit.apps.spotify.playback.SpotifyAudioSink
 import hrln.interactive.sidekit.apps.spotify.playback.SpotifyPlayback
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,7 +32,10 @@ class SpotifySession(
     private val _signedIn = MutableStateFlow(auth.hasCredentials())
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
 
-    private val settingsStore = context?.let { SpotifySettingsStore(it.applicationContext) }
+    private val appContext = context?.applicationContext
+    private val settingsStore = appContext?.let { SpotifySettingsStore(it) }
+    private val queueStore = appContext?.let { FileSpotifyQueueStore(File(it.filesDir, "sidetracks-queue.bin")) }
+    private val historyStore = appContext?.let { FileSpotifyHistoryStore(File(it.filesDir, "sidetracks-history.bin")) }
     private val _settings = MutableStateFlow(settingsStore?.read() ?: SpotifySettings())
     val settings: StateFlow<SpotifySettings> = _settings.asStateFlow()
 
@@ -49,8 +53,14 @@ class SpotifySession(
     val writer: SpotifyLibraryWriter? get() = catalog as? SpotifyLibraryWriter
 
     /** Process-wide queue and history so leaving Sidetracks does not forget what is playing. */
-    val queue = SpotifyQueueRepository()
-    val history = SpotifyHistoryRepository()
+    val queue = SpotifyQueueRepository(
+        load = { queueStore?.read() ?: SpotifyQueueRepository.Snapshot() },
+        save = { queueStore?.write(it) }
+    )
+    val history = SpotifyHistoryRepository(
+        load = { historyStore?.read().orEmpty() },
+        save = { historyStore?.write(it) }
+    )
 
     private val playbackScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val playback: SpotifyPlayback by lazy {
@@ -58,7 +68,7 @@ class SpotifySession(
             gateway = nativeGateway,
             scope = playbackScope,
             audio = SpotifyAudioSink(NativeBridge, playbackScope),
-            context = context?.applicationContext
+            context = appContext
         ).also { player ->
             // Adopt transport actions when no ViewModel is attached. The ViewModel installs its
             // own callbacks while it exists and clears them in onCleared().
