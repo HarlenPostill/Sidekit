@@ -70,7 +70,7 @@ fun SideplayHomeScreen(
             }
             item(key = "recentLabel") { SectionLabel("Recently played") }
             if (recent.isEmpty()) {
-                item(key = "empty") { EmptyMessage("Nothing played yet", "Search to find your first track") }
+                item(key = "empty") { EmptyMessage("Nothing played yet", hint = "Search to find your first track") }
             } else {
                 itemsIndexed(recent, key = { _, track -> track.id }) { index, track ->
                     SidekitSwipeRow(
@@ -141,7 +141,7 @@ fun LibraryScreen(
         SidekitList(padding, state = listState) {
             val items = state.libraryItems
             if (items.isEmpty()) {
-                item(key = "empty") { EmptyMessage(state.filter.empty, "Search to find something to save") }
+                item(key = "empty") { EmptyMessage(state.filter.empty, hint = "Search to find something to save") }
             }
             itemsIndexed(items, key = { index, item -> "$index:${libraryKey(item)}" }) { index, item ->
                 val modifier = Modifier.listFade(listState, index).then(if (index == 0) Modifier.focusRequester(first) else Modifier)
@@ -223,7 +223,7 @@ fun CollectionScreen(
                         if (saved) SidekitIcon.Check else SidekitIcon.Bookmark,
                         if (saved) "Saved" else "Save",
                         onSave,
-                        if (saved) SpotifyTileTone.On else SpotifyTileTone.Neutral
+                        tone = if (saved) SpotifyTileTone.On else SpotifyTileTone.Neutral
                     )
                     if (collection.artistId != null) {
                         SpotifyIconTile(SidekitIcon.Artist, "Artist", onArtist)

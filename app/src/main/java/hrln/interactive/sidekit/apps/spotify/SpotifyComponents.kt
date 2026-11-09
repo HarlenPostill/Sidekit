@@ -170,9 +170,9 @@ fun RowScope.SpotifyIconTile(
     icon: SidekitIcon,
     label: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     tone: SpotifyTileTone = SpotifyTileTone.Neutral,
-    weight: Float = 1f,
-    modifier: Modifier = Modifier
+    weight: Float = 1f
 ) {
     val colors = SidekitTheme.colors
     SidekitIconItem(
@@ -250,7 +250,7 @@ fun ArtworkTile(@DrawableRes artRes: Int, label: String, modifier: Modifier = Mo
 }
 
 @Composable
-fun EmptyMessage(title: String, hint: String? = null, modifier: Modifier = Modifier) {
+fun EmptyMessage(title: String, modifier: Modifier = Modifier, hint: String? = null) {
     Column(
         modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -281,7 +281,7 @@ fun PagingFooter(loading: Boolean, onLoadMore: () -> Unit) {
     LaunchedEffect(loading) {
         if (!loading) onLoadMore()
     }
-    EmptyMessage(if (loading) "Loading more…" else "More", null)
+    EmptyMessage(if (loading) "Loading more…" else "More", hint = null)
 }
 
 fun withNotice(notice: String?, onDismiss: () -> Unit, actions: List<SideAction>): List<SideAction> = if (notice == null) {
