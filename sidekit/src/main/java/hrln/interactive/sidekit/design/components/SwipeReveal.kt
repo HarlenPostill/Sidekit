@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -43,15 +44,14 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import hrln.interactive.sidekit.design.icons.SidekitIcon
 import hrln.interactive.sidekit.design.motion.SidekitMotion
 import hrln.interactive.sidekit.design.theme.SidekitTheme
+import kotlin.math.min
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.min
 
 /** The action revealed by a left swipe. Delete is the default; other actions pass their own. */
 data class SwipeAction(
@@ -104,7 +104,7 @@ fun SidekitSwipeRow(
     modifier: Modifier = Modifier,
     deleteLabel: String = "Delete",
     action: SwipeAction? = null,
-    content: @Composable () -> Unit,
+    content: @Composable () -> Unit
 ) {
     val density = LocalDensity.current
     val colors = SidekitTheme.colors
@@ -153,7 +153,11 @@ fun SidekitSwipeRow(
         arm.animateTo(if (armed) 1f else 0f, SidekitMotion.settle)
     }
     LaunchedEffect(isOpen) {
-        if (isOpen) group.openKey = key else if (group.openKey == key && !dragging) group.openKey = null
+        if (isOpen) {
+            group.openKey = key
+        } else if (group.openKey == key && !dragging) {
+            group.openKey = null
+        }
     }
     LaunchedEffect(group, key) {
         snapshotFlow { group.openKey }.collect { open -> if (open != key && !dragging && offset != 0f) settle(0f) }
@@ -186,11 +190,14 @@ fun SidekitSwipeRow(
                     color = lerp(swipeAction.color, swipeAction.armedColor, a),
                     topLeft = Offset(left, 0f),
                     size = Size(revealed, size.height),
-                    cornerRadius = CornerRadius(r, r),
+                    cornerRadius = CornerRadius(r, r)
                 )
                 // Icon sits centred in the button, then jumps to the leading edge once armed.
-                val cx = if (revealed <= buttonPx) left + revealed / 2f
-                else lerp(size.width - buttonPx / 2f, left + buttonPx / 2f, a)
+                val cx = if (revealed <= buttonPx) {
+                    left + revealed / 2f
+                } else {
+                    lerp(size.width - buttonPx / 2f, left + buttonPx / 2f, a)
+                }
                 val iconAlpha = ((revealed - iconPx * 0.5f) / iconPx).coerceIn(0f, 1f)
                 val s = iconPx * lerp(0.6f, 1f, iconAlpha) * (1f + 0.15f * a)
                 translate(cx - s / 2f, (size.height - s) / 2f) {
@@ -210,18 +217,25 @@ fun SidekitSwipeRow(
                     val width = metrics.width.toFloat()
                     when {
                         armed -> settle(-width, velocity) { performAction() }
+
                         velocity < -FLING_VELOCITY || (offset < openOffset / 2f && velocity < FLING_VELOCITY) ->
                             settle(openOffset, velocity)
+
                         else -> {
                             settle(0f, velocity)
                             if (group.openKey == key) group.closeAll()
                         }
                     }
-                },
+                }
             )
             .semantics {
-                customActions = listOf(CustomAccessibilityAction(swipeAction.label) { performAction(); true })
-            },
+                customActions = listOf(
+                    CustomAccessibilityAction(swipeAction.label) {
+                        performAction()
+                        true
+                    }
+                )
+            }
     ) {
         Box(Modifier.graphicsLayer { translationX = offset }) { content() }
         if (isOpen) {
@@ -230,7 +244,12 @@ fun SidekitSwipeRow(
                 Modifier
                     .matchParentSize()
                     .graphicsLayer { translationX = offset }
-                    .pointerInput(Unit) { detectTapGestures { settle(0f); group.closeAll() } },
+                    .pointerInput(Unit) {
+                        detectTapGestures {
+                            settle(0f)
+                            group.closeAll()
+                        }
+                    }
             )
             // matchParentSize: rows sit in a lazy list (unbounded height), so the tap target takes
             // the row's measured height rather than fillMaxHeight's (which would be 0).
@@ -244,7 +263,7 @@ fun SidekitSwipeRow(
                                 if (swipeAction.destructive) HapticFeedbackConstants.REJECT else HapticFeedbackConstants.CONTEXT_CLICK
                             )
                             performAction()
-                        },
+                        }
                 )
             }
         }

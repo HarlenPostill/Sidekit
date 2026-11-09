@@ -111,7 +111,6 @@ fun SpotifyNowPlayingScreen(
                         Modifier.fillMaxWidth(),
                         style = SidekitTheme.typography.headline,
                         textAlign = TextAlign.Center,
-                        minLines = 1,
                         maxLines = 2
                     )
                     if (current.creator.isNotBlank()) {
