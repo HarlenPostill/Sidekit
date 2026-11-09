@@ -37,6 +37,7 @@ fun versionCodeFromGit() = runCatching { gitVersionCode.get() }.getOrDefault(fal
 fun versionNameFromGit() = runCatching { gitVersionName.get() }.getOrDefault(fallbackVersionName)
 
 android {
+    ndkVersion = "27.1.12297006"
     namespace = "hrln.interactive.sidekit"
     compileSdk {
         version = release(37)
