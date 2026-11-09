@@ -82,8 +82,12 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 - OAuth tokens rotate into an existing native session. Every play and resume revalidates that
   session: librespot marks it invalid when the access-point connection or its keep-alive dies,
   so an invalid session is rebuilt from the stored token and the current item reloads at its
-  position. Sign-out stops the decoder synchronously, releases the media session, removes the
-  notification, then clears credentials.
+  position. A connection attempt is bounded (20 s native, 25 s Kotlin) so a stalled handshake
+  reports an error instead of leaving the play button hanging. Tearing down the old session runs
+  off the native state lock, because `Session::shutdown` can block behind a stalled network task;
+  a shutdown that cannot complete leaks one thread instead of wedging playback. Sign-out stops
+  the decoder synchronously, releases the media session, removes the notification, then clears
+  credentials.
 - Audio quality persists encrypted across process death and maps to 96/160/320 kbps. Playback
   volume is the device output volume; there is no separate attenuation.
 - Artwork is memory-safe on device: 300 px URL preference, `RGB_565` + `inSampleSize`, 1024 px
