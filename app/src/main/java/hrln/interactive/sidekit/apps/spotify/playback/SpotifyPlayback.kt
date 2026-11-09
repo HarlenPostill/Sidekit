@@ -78,9 +78,11 @@ class SpotifyPlayback(
     private var noisyRegistered = false
 
     private val noisy = object : BroadcastReceiver() {
-        // Headphones unplugged: pause rather than play out loud.
-        override fun onReceive(context: Context, intent: Intent) = pause()
+        override fun onReceive(context: Context, intent: Intent) = onAudioBecomingNoisy()
     }
+
+    /** Headphones unplugged: pause rather than play out loud. */
+    fun onAudioBecomingNoisy() = pause()
 
     private val focus = context?.let {
         AudioFocus(

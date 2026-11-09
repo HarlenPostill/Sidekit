@@ -95,6 +95,8 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 - APK contains `arm64-v8a` and `x86_64` `libsidekit_spotify.so`.
 - On `SP01GE260600886` (480 × 640): libraries load real data, search returns Pathfinder tracks,
   playback advances/pauses correctly, show episodes format dates, and artwork no longer crashes.
+- On `SP01GE260600886`: instrumented tests cover the foreground-service notification and actions,
+  media-session metadata/state, media-owner hand-off, and the headphone-unplug pause path.
 
 ---
 
@@ -111,18 +113,7 @@ lyrics/Canvas/video, social features, account management, crossfade/EQ, and trac
 
 ---
 
-## 4. Before merge
-
-Close these before proposing the branch for merge. They are correctness/contract issues, not
-parity work.
-
-1. **Service/audio-focus instrumentation.** Cover the foreground service, media session,
-   audio-focus hand-off, and headphone unplug on Android. Current tests cover JVM seams and
-   screenshots only.
-
----
-
-## 5. What's next
+## 4. What's next
 
 Ordered by user-visible impact. Each item names its seam so it does not become another
 cross-cutting refactor.
