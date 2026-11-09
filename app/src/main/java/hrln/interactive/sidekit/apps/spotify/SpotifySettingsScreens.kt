@@ -91,6 +91,7 @@ fun SpotifySettingsScreen(
                     secondary = state.audioQuality.label,
                     secondaryToEnd = true,
                     showLinkArrow = true,
+                    showLinkArrowWithSecondary = true,
                     onClick = onAudioQuality
                 )
             }
@@ -117,6 +118,7 @@ fun SpotifySettingsScreen(
                     secondary = "12 MB",
                     secondaryToEnd = true,
                     showLinkArrow = true,
+                    showLinkArrowWithSecondary = true,
                     onClick = onClearCache
                 )
             }
@@ -127,6 +129,7 @@ fun SpotifySettingsScreen(
                     secondary = "${state.history.size} tracks",
                     secondaryToEnd = true,
                     showLinkArrow = true,
+                    showLinkArrowWithSecondary = true,
                     onClick = { confirmation = SettingsConfirmation.ClearHistory }
                 )
             }
