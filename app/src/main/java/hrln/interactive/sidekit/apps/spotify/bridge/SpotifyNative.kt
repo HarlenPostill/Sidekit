@@ -19,6 +19,7 @@ interface SpotifyNative {
     fun stop(): Boolean
     fun seek(positionMs: Long): Boolean
     fun readAudio(timeoutMs: Long): ByteArray?
+    fun drainAudio()
     fun audioFormat(): String?
     fun pollEvent(): String?
 
