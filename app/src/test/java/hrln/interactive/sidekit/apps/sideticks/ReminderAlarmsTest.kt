@@ -22,6 +22,14 @@ class ReminderAlarmsTest {
         alarm.reconcile(listOf(tick), listOf(tick.copy(ticked = true)))
         assertTrue(shadowOf(manager).scheduledAlarms.isEmpty())
     }
+    @Test fun `scheduled reminder carries the reminder action`() {
+        val manager = context.getSystemService(AlarmManager::class.java)
+        org.robolectric.shadows.ShadowAlarmManager.setCanScheduleExactAlarms(true)
+        ReminderAlarms(context).reconcile(emptyList(), listOf(Tick(71, "Milk", dueAt = System.currentTimeMillis() + 60000)))
+        val operation = shadowOf(manager).scheduledAlarms.first().operation
+        assertEquals(ReminderReceiver.ACTION_REMINDER, shadowOf(operation).savedIntent.action)
+    }
+
     @Test fun `restoring a snapshot schedules only undelivered open reminders`() {
         val manager = context.getSystemService(AlarmManager::class.java)
         org.robolectric.shadows.ShadowAlarmManager.setCanScheduleExactAlarms(true)

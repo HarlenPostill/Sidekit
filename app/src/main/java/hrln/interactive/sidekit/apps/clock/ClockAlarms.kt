@@ -12,7 +12,8 @@ import kotlinx.coroutines.flow.first
 class ClockAlarms(private val context: Context) : ClockScheduling {
     private val alarms = context.getSystemService(AlarmManager::class.java)
     private fun pending(id: String, at: Long = 0) = PendingIntent.getBroadcast(context, 0,
-        Intent(context, ClockReceiver::class.java).setData(Uri.parse("sidekit://clock/$id")).putExtra("id", id).putExtra("at", at),
+        Intent(context, ClockReceiver::class.java).setAction(ACTION_FIRE)
+            .setData(Uri.parse("sidekit://clock/$id")).putExtra("id", id).putExtra("at", at),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     override fun reconcile(before: ClockData, after: ClockData) {
         before.alarms.filter { old -> after.alarms.none { it == old } }.forEach { alarms.cancel(pending(it.id)) }
@@ -58,7 +59,12 @@ class ClockAlarms(private val context: Context) : ClockScheduling {
             .setTimeoutAfter(600000).build().apply { flags = flags or Notification.FLAG_INSISTENT }
         try { manager.notify(NOTIFICATION_ID, notification) } catch (_: SecurityException) { /* Permission status is explained in Clock. */ }
     }
-    companion object { const val NOTIFICATION_ID = 41001; const val SNOOZE = "clock.snooze"; const val DISMISS = "clock.dismiss" }
+    companion object {
+        const val NOTIFICATION_ID = 41001
+        const val SNOOZE = "clock.snooze"
+        const val DISMISS = "clock.dismiss"
+        const val ACTION_FIRE = "hrln.interactive.sidekit.action.CLOCK_FIRE"
+    }
 }
 
 class ClockReceiver : BroadcastReceiver() {
@@ -78,11 +84,13 @@ class ClockReceiver : BroadcastReceiver() {
                         Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED -> { repo.timeChanged(); repo.awaitSaved() }
                         Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED,
                         AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED -> ClockAlarms(context).reconcile(ClockData(), repo.data.value!!)
-                        else -> {
+                        ClockAlarms.ACTION_FIRE -> {
                             val ring = repo.fire(intent.getStringExtra("id") ?: return@withTimeout, intent.getLongExtra("at", -1)) ?: return@withTimeout
                             repo.awaitSaved()
                             if (repo.data.value?.ringing == ring) ClockAlarms(context).notify(ring)
                         }
+                        // Ignore explicit intents that don't carry one of our known actions.
+                        else -> return@withTimeout
                     }
                 }
             } catch (e: Exception) { android.util.Log.e("SidekitAlarms", "Could not handle alarm broadcast", e) }
