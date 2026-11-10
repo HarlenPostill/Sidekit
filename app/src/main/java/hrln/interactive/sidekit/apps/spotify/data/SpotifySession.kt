@@ -34,6 +34,7 @@ class SpotifySession(
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
 
     private val appContext = context?.applicationContext
+    private val audioCacheDir = appContext?.let { File(it.cacheDir, "spotify-audio") }
     private val settingsStore = appContext?.let { SpotifySettingsStore(it) }
 
     // Legacy file names kept so existing dev installs keep their queue and history.
@@ -84,6 +85,7 @@ class SpotifySession(
     init {
         if (nativeAvailable) {
             tmpDir?.let(NativeBridge::setTmpDir)
+            audioCacheDir?.let { NativeBridge.setCacheDir(it.absolutePath, AUDIO_CACHE_LIMIT_BYTES) }
             NativeBridge.initialize()
         }
     }
@@ -202,9 +204,17 @@ class SpotifySession(
     /** One librespot player event, or null when nothing has happened since the last poll. */
     fun pollPlaybackEvent(): String? = if (nativeAvailable) NativeBridge.pollEvent() else null
 
+    /** Drops the on-disk audio cache. librespot re-fetches anything it still needs. */
+    fun clearAudioCache() {
+        audioCacheDir?.deleteRecursively()
+    }
+
     private companion object {
         /** Slightly longer than the native connect timeout, so its specific error wins. */
         const val CONNECT_TIMEOUT_MS = 25_000L
+
+        /** Upper bound for the audio cache; librespot evicts least-recently-used entries. */
+        const val AUDIO_CACHE_LIMIT_BYTES = 1L shl 30
     }
 
     private object NoopCredentialStore : hrln.interactive.sidekit.apps.spotify.auth.SpotifyCredentialStore {

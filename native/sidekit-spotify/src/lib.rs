@@ -51,6 +51,18 @@ pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeB
 }
 
 #[no_mangle]
+pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeBridge_nativeSetCacheDir(
+    mut env: JNIEnv,
+    _this: JObject,
+    path: JString,
+    size_limit: jlong,
+) {
+    if let Some(path) = string(&mut env, &path) {
+        engine::set_cache_dir(&path, size_limit.max(0) as u64);
+    }
+}
+
+#[no_mangle]
 pub extern "system" fn Java_hrln_interactive_sidekit_apps_spotify_bridge_NativeBridge_nativeConnect(
     mut env: JNIEnv,
     _this: JObject,

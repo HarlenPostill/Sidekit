@@ -17,6 +17,10 @@ object NativeBridge : SpotifyNative {
         if (isAvailable) runCatching { nativeSetTmpDir(path) }
     }
 
+    override fun setCacheDir(path: String, sizeLimitBytes: Long) {
+        if (isAvailable) runCatching { nativeSetCacheDir(path, sizeLimitBytes) }
+    }
+
     override fun connect(accessToken: String): Boolean = isAvailable && runCatching { nativeConnect(accessToken) }.getOrDefault(false)
 
     override fun setAccessToken(accessToken: String): Boolean = isAvailable && runCatching { nativeSetAccessToken(accessToken) }.getOrDefault(false)
@@ -65,6 +69,7 @@ object NativeBridge : SpotifyNative {
 
     private external fun nativeInit(): Boolean
     private external fun nativeSetTmpDir(path: String)
+    private external fun nativeSetCacheDir(path: String, sizeLimitBytes: Long)
     private external fun nativeConnect(accessToken: String): Boolean
     private external fun nativeSetAccessToken(accessToken: String): Boolean
     private external fun nativeDisconnect()

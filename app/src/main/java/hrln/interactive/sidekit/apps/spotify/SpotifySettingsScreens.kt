@@ -95,27 +95,11 @@ fun SpotifySettingsScreen(
                     onClick = onAudioQuality
                 )
             }
-            item(key = "streaming") {
-                SidekitCard(
-                    Modifier.listFade(listState, 1).fillMaxWidth(),
-                    color = SidekitTheme.colors.surfaceA2
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        SidekitText("Streaming only", style = SidekitTheme.typography.bodySmall)
-                        SidekitText(
-                            "Offline downloads are not available in this build",
-                            style = SidekitTheme.typography.caption,
-                            color = SidekitTheme.colors.surfaceA6,
-                            maxLines = 2
-                        )
-                    }
-                }
-            }
             item(key = "cache") {
                 SidekitItem(
-                    "Artwork cache",
-                    Modifier.listFade(listState, 2),
-                    secondary = "12 MB",
+                    "Cache",
+                    Modifier.listFade(listState, 1),
+                    secondary = "1 GB",
                     secondaryToEnd = true,
                     showLinkArrow = true,
                     showLinkArrowWithSecondary = true,
@@ -125,7 +109,7 @@ fun SpotifySettingsScreen(
             item(key = "history") {
                 SidekitItem(
                     "Clear history",
-                    Modifier.listFade(listState, 3),
+                    Modifier.listFade(listState, 2),
                     secondary = "${state.history.size} tracks",
                     secondaryToEnd = true,
                     showLinkArrow = true,
@@ -136,7 +120,7 @@ fun SpotifySettingsScreen(
             item(key = "account") {
                 SidekitItem(
                     "Account",
-                    Modifier.listFade(listState, 4),
+                    Modifier.listFade(listState, 3),
                     secondary = if (state.signedIn) "Signed in" else "Not signed in",
                     secondaryToEnd = true
                 )

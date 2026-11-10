@@ -696,7 +696,8 @@ class SpotifyViewModel(
 
     fun clearCache() {
         clearArtworkCache()
-        _state.update { it.copy(notice = "Artwork cache cleared") }
+        session?.clearAudioCache()
+        _state.update { it.copy(notice = "Cache cleared") }
     }
 
     fun moveToNext(item: SpotifyMediaItem) {

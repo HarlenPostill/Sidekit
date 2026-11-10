@@ -107,6 +107,7 @@ class NativeSpotifyGatewayTest {
 
         override fun initialize() = isAvailable
         override fun setTmpDir(path: String) = Unit
+        override fun setCacheDir(path: String, sizeLimitBytes: Long) = Unit
         override fun connect(accessToken: String): Boolean {
             connects++
             token = accessToken

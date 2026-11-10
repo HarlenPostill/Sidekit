@@ -8,6 +8,7 @@ interface SpotifyNative {
 
     fun initialize(): Boolean
     fun setTmpDir(path: String)
+    fun setCacheDir(path: String, sizeLimitBytes: Long)
     fun connect(accessToken: String): Boolean
     fun setAccessToken(accessToken: String): Boolean
     fun disconnect()

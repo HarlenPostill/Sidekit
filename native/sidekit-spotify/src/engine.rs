@@ -2,6 +2,7 @@
 
 use crate::audio::{PcmSink, CHANNELS, SAMPLE_RATE};
 use librespot_core::authentication::Credentials;
+use librespot_core::cache::Cache;
 use librespot_core::config::SessionConfig;
 use librespot_core::session::Session;
 use librespot_core::SpotifyUri;
@@ -76,11 +77,34 @@ fn audio_rx() -> &'static Mutex<Receiver<Vec<u8>>> {
 
 static AUDIO_TX: OnceLock<SyncSender<Vec<u8>>> = OnceLock::new();
 static TMP_DIR: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
+static CACHE: OnceLock<Mutex<Option<(PathBuf, u64)>>> = OnceLock::new();
 
 pub fn set_tmp_dir(path: &str) {
     let slot = TMP_DIR.get_or_init(|| Mutex::new(None));
     if let Ok(mut guard) = slot.lock() {
         *guard = Some(PathBuf::from(path));
+    }
+}
+
+/// Enables librespot's on-disk audio cache. The cache stores the encrypted CDN blobs and is
+/// bounded by `size_limit` bytes; librespot evicts least-recently-used entries past the limit.
+pub fn set_cache_dir(path: &str, size_limit: u64) {
+    let slot = CACHE.get_or_init(|| Mutex::new(None));
+    if let Ok(mut guard) = slot.lock() {
+        *guard = Some((PathBuf::from(path), size_limit));
+    }
+}
+
+fn cache() -> Option<Cache> {
+    let (path, size_limit) = CACHE
+        .get()
+        .and_then(|slot| slot.lock().ok().and_then(|guard| guard.clone()))?;
+    match Cache::new::<PathBuf>(None, None, Some(path), Some(size_limit)) {
+        Ok(cache) => Some(cache),
+        Err(error) => {
+            log::warn!("audio cache unavailable: {error}");
+            None
+        }
     }
 }
 
@@ -132,7 +156,7 @@ pub fn connect(access_token: &str) -> Result<(), String> {
         tmp_dir: tmp_dir(),
         ..Default::default()
     };
-    let session = Session::new(config, None);
+    let session = Session::new(config, cache());
     // A fresh TCP handshake has no deadline of its own, and `Session::connect` may walk up to six
     // access points. Bound it so a bad network cannot wedge the caller (and the UI waiting on it)
     // indefinitely; the caller retries with a new session on the next play.
