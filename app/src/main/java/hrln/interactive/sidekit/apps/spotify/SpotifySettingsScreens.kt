@@ -35,6 +35,7 @@ fun SpotifySettingsScreen(
     state: SpotifyUiState,
     onBack: () -> Unit,
     onAudioQuality: () -> Unit,
+    onAutoplay: () -> Unit,
     onClearCache: () -> Unit,
     onClearHistory: () -> Unit,
     onSignOut: () -> Unit,
@@ -95,10 +96,21 @@ fun SpotifySettingsScreen(
                     onClick = onAudioQuality
                 )
             }
+            item(key = "autoplay") {
+                SidekitItem(
+                    "Autoplay",
+                    Modifier.listFade(listState, 1),
+                    secondary = if (state.autoplay) "On" else "Off",
+                    secondaryToEnd = true,
+                    showLinkArrow = true,
+                    showLinkArrowWithSecondary = true,
+                    onClick = onAutoplay
+                )
+            }
             item(key = "cache") {
                 SidekitItem(
                     "Cache",
-                    Modifier.listFade(listState, 1),
+                    Modifier.listFade(listState, 2),
                     secondary = "1 GB",
                     secondaryToEnd = true,
                     showLinkArrow = true,
@@ -109,7 +121,7 @@ fun SpotifySettingsScreen(
             item(key = "history") {
                 SidekitItem(
                     "Clear history",
-                    Modifier.listFade(listState, 2),
+                    Modifier.listFade(listState, 3),
                     secondary = "${state.history.size} tracks",
                     secondaryToEnd = true,
                     showLinkArrow = true,
@@ -120,7 +132,7 @@ fun SpotifySettingsScreen(
             item(key = "account") {
                 SidekitItem(
                     "Account",
-                    Modifier.listFade(listState, 3),
+                    Modifier.listFade(listState, 4),
                     secondary = if (state.signedIn) "Signed in" else "Not signed in",
                     secondaryToEnd = true
                 )
