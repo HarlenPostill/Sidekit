@@ -50,8 +50,7 @@ fun SideplayHomeScreen(
         listOf(
             SideAction("queue", "Queue", SidekitIcon.QueueMusic, onClick = onQueue),
             SideAction("search", "Search", SidekitIcon.Search, motion = ActionMotion.Forward, onClick = onSearch)
-        ),
-        state.noticeKind
+        )
     )
     SidekitScaffold(
         title = "Sideplay",
