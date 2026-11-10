@@ -72,7 +72,7 @@ fun SideplayHomeScreen(
             if (recent.isEmpty()) {
                 item(key = "empty") { EmptyMessage("Nothing played yet", hint = "Search to find your first track") }
             } else {
-                itemsIndexed(recent, key = { _, track -> track.id }) { index, track ->
+                itemsIndexed(recent, key = { index, track -> "$index:${track.id}" }) { index, track ->
                     SidekitSwipeRow(
                         key = track.id,
                         group = swipes,
@@ -306,7 +306,7 @@ fun ArtistScreen(
                 }
             }
             item(key = "topLabel") { SectionLabel("Top tracks") }
-            itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
+            itemsIndexed(tracks, key = { index, track -> "$index:${track.id}" }) { index, track ->
                 SidekitSwipeRow(
                     key = track.id,
                     group = swipes,
@@ -320,7 +320,7 @@ fun ArtistScreen(
                 item(key = "tracksMore") { PagingFooter(loadingMore, onLoadMoreTracks) }
             }
             item(key = "albumsLabel") { SectionLabel("Albums") }
-            itemsIndexed(albums, key = { _, album -> album.id }) { index, album ->
+            itemsIndexed(albums, key = { index, album -> "$index:${album.id}" }) { index, album ->
                 SpotifyLibraryRow(
                     album.artRes,
                     album.title,
