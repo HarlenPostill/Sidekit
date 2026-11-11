@@ -30,21 +30,36 @@ class MainActivity : SidekitActivity() {
         val config = remember { SidekitConfigClient.read(context) }
         val theme = rememberSidekitThemeConfig(themeStore)
         Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .padding(top = SidekitTheme.spacing.headerHeight, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            BasicText("Sidekit SDK sample", style = SidekitTheme.typography.headline)
+            BasicText(
+                "Sidekit SDK sample",
+                style = SidekitTheme.typography.headline.copy(color = SidekitTheme.colors.light)
+            )
             BasicText(
                 when (status) {
                     HostStatus.Available -> "Host: Sidekit ${config?.hostVersion.orEmpty()}"
                     HostStatus.InstalledUnsupported -> "Host: installed, unsupported schema"
                     HostStatus.NotInstalled -> "Host: not installed, using local settings"
                 },
-                style = SidekitTheme.typography.body
+                style = SidekitTheme.typography.body.copy(color = SidekitTheme.colors.light)
             )
-            BasicText("Case colour: ${theme.caseColour?.label ?: "local default"}", style = SidekitTheme.typography.body)
-            BasicText("Compact layout: ${if (theme.compact) "on" else "off"}", style = SidekitTheme.typography.body)
-            BasicText("Contract schema: ${config?.schema ?: SidekitContract.SCHEMA_VERSION}", style = SidekitTheme.typography.body)
+            BasicText(
+                "Case colour: ${theme.caseColour?.label ?: "local default"}",
+                style = SidekitTheme.typography.body.copy(color = SidekitTheme.colors.light)
+            )
+            BasicText(
+                "Compact layout: ${if (theme.compact) "on" else "off"}",
+                style = SidekitTheme.typography.body.copy(color = SidekitTheme.colors.light)
+            )
+            BasicText(
+                "Contract schema: ${config?.schema ?: SidekitContract.SCHEMA_VERSION}",
+                style = SidekitTheme.typography.body.copy(color = SidekitTheme.colors.light)
+            )
         }
     }
 }
