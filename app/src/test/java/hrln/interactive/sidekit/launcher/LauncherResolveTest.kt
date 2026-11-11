@@ -65,7 +65,7 @@ class LauncherResolveTest {
     @Test
     fun `default dock resolves to the four built-ins in home order`() {
         val home = HomePreferences(context)
-        val dock = toLauncherEntries(home.dockFor(known), subsById, portedById)
+        val dock = toLauncherEntries(home.dockFor(known), subsById, portedById, nativeById)
         assertEquals(SubApp.dock.take(HomePreferences.DOCK_MAX).map { it.visibilityId() }, dock.map { it.id })
     }
 
@@ -77,7 +77,7 @@ class LauncherResolveTest {
         val customHome = listOf("builtin:Mail", "builtin:Camera", "ported:test.calendar", "builtin:Phonebook") + builtinsExcept("builtin:Mail", "builtin:Camera", "builtin:Phonebook")
         home.saveOrder(customHome)
 
-        val dock = toLauncherEntries(home.dockFor(known), subsById, portedById)
+        val dock = toLauncherEntries(home.dockFor(known), subsById, portedById, nativeById)
         // Dock = the first four of the committed home order, in that order, incl. the ported app.
         assertEquals(listOf("builtin:Mail", "builtin:Camera", "ported:test.calendar", "builtin:Phonebook"), dock.map { it.id })
     }
@@ -103,7 +103,7 @@ class LauncherResolveTest {
         home.move(sideticks, 20)
         home.move(phonebook, -2)
 
-        val entries = toLauncherEntries(home.homeOrderFor(known), subsById, portedById)
+        val entries = toLauncherEntries(home.homeOrderFor(known), subsById, portedById, nativeById)
         // Sideticks moved later, so Phonebook now comes first of the two.
         assertTrue(entries.map { it.id }.indexOf(phonebook) < entries.map { it.id }.indexOf(sideticks))
     }
@@ -113,7 +113,8 @@ class LauncherResolveTest {
         val entries = toLauncherEntries(
             listOf("builtin:Sidemessage", "builtin:DoesNotExist", "ported:unknown.pkg"),
             subsById,
-            portedById
+            portedById,
+            nativeById
         )
         assertEquals(listOf("builtin:Sidemessage"), entries.map { it.id })
     }
