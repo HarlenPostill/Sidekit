@@ -2,7 +2,8 @@
 
 **Branch:** `feat/third-party-apps` (based on `upstream/main` at `3debe06`)
 **Audited:** 11 November 2026
-**Status:** Foundation is sound; not ready for PR until the items below are done.
+**Status:** Foundation is sound; the must-fix items are done. Rebase onto `upstream/main` and run
+the two instrumentation tests on a device before opening the PR.
 
 ## Branch strategy
 
@@ -104,15 +105,18 @@ SDK-built apps can read the theme and keypad setup.
 - `:sample-app:compileDebugAndroidTestKotlin` and `:permission-test-app:assembleDebugAndroidTest`
   pass; both separate-APK tests are ready for a device.
 - `spotlessCheck` passes.
-- `:app:lintDebug`, `:sidekit-sdk:lintDebug`, `:sample-app:lintDebug` and
+- `:app:lintDebug`, `:sidekit:lintDebug`, `:sidekit-sdk:lintDebug`, `:sample-app:lintDebug` and
   `:permission-test-app:lintDebug` pass.
+- `:sample-app:assembleDebug -PsidekitUsePublished=true` resolves the freshly published
+  `sidekit-sdk` and its transitive `sidekit-design` dependency.
+- `:sidekit:publishAllPublicationsToSidekitGitHubRepository -PsidekitPublishGitHub=true` is
+  configured and dry-run clean; the `Publish SDK` workflow runs it on `v*` tags.
 - `:sidekit` and `:sidekit-sdk` publish to `build/local-repo`, and `:sample-app:assembleDebug
   -PsidekitUsePublished=true` resolves the published `sidekit-sdk` plus its transitive
   `sidekit-design` dependency.
 
 ## Size
 
-- 5 commits, 94 files, +4,211 / −964 (net +3,247).
-- Net production code is roughly +2.1k lines, mostly the new `:sidekit-sdk` module (2,023
-  insertions).
-- Tests: 14 files, +570 / −56. Docs: 2 files, +476 / −4. Build/publish: 13 files, +307 / −55.
+- 12 commits, 103 files, +4,956 / −968 (net +3,988).
+- Net production code is roughly +2.1k lines, mostly the new `:sidekit-sdk` module.
+- Tests: 16 files, +700 / −60. Docs: 2 files, +520 / −4. Build/publish: 16 files, +360 / −55.
