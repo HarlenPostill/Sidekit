@@ -1,6 +1,6 @@
 # Third-party apps and shared user configuration
 
-**Status:** In progress — tasks 1–2 structurally complete; task 3 next
+**Status:** In progress — tasks 1–3 complete and verified; task 4 next
 **Date:** 11 November 2026
 **Branch:** `feat/third-party-apps`
 
@@ -39,20 +39,20 @@ Checked items are already in this branch. Unchecked items follow the recommended
 - [x] Create the `:sidekit-sdk` module, permission definition, host `<queries>` and
   `SidekitContract` identifiers.
 - [x] Keep the keypad accessibility service in Sidekit; Sideplay mirrors it for standalone use.
-- [ ] Move `CaseColour` from `:app` into `:sidekit`.
-- [ ] Add `SidekitThemeConfig`, local and host-backed `SidekitThemeStore`,
+- [x] Move `CaseColour` from `:app` into `:sidekit`.
+- [x] Add `SidekitThemeConfig`, local and host-backed `SidekitThemeStore`,
   `rememberSidekitThemeConfig`, and the shared `caseColourChoices`.
-- [ ] Add `KeypadPreferences` with `SharedPreferencesKeypadPreferences` and
+- [x] Add `KeypadPreferences` with `SharedPreferencesKeypadPreferences` and
   `HostKeypadPreferences`.
-- [ ] Route `Keypad.create` and `KeyMapper.create` through `KeypadPreferences`.
-- [ ] Extract the `onResume` input-mode application helper.
-- [ ] Move the keypad settings composables into the SDK; move or replace `CompactRowHeight`.
-- [ ] Extract `SidekitInputController` and provide `SidekitActivity` / `SidekitAppHost`.
-- [ ] Move `KeypadAccessibilityService` into the SDK and remove its
+- [x] Route `Keypad.create` and `KeyMapper.create` through `KeypadPreferences`.
+- [x] Extract the `onResume` input-mode application helper.
+- [x] Move the keypad settings composables into the SDK; move or replace `CompactRowHeight`.
+- [x] Extract `SidekitInputController` and provide `SidekitActivity` / `SidekitAppHost`.
+- [x] Move `KeypadAccessibilityService` into the SDK and remove its
   `SideportService.handleSystemBack()` dependency.
-- [ ] Move `EncryptedFileStore`/`KeystoreCipher`, `RemoteArtwork`/`Thumbnails`, `UndoWindow` and
+- [x] Move `EncryptedFileStore`/`KeystoreCipher`, `RemoteArtwork`/`Thumbnails`, `UndoWindow` and
   `NativeLibraries` into the SDK.
-- [ ] Add `consumer-rules.pro` if the published API needs keep rules.
+- [x] Add `consumer-rules.pro` (comment-only today: the public API needs no reflection keeps).
 
 ### 4. Implement provider and client
 

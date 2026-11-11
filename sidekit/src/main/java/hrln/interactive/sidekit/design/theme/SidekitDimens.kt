@@ -28,9 +28,11 @@ data class SidekitSpacing(
     val headerPaddingTop: Dp = 30.dp,
     val headerHeight: Dp = 103.dp,
     val itemHeight: Dp = 104.dp,
+    /** Height of the compact list rows used by settings and file lists. */
+    val compactRowHeight: Dp = 74.dp,
     val actionBarHeight: Dp = 112.dp,
     val iconSize: Dp = 40.dp,
-    val tileIconSize: Dp = 44.dp,
+    val tileIconSize: Dp = 44.dp
 ) {
     companion object {
         /**
@@ -42,7 +44,7 @@ data class SidekitSpacing(
         val Compact: SidekitSpacing = SidekitSpacing(
             headerPaddingTop = 14.dp,
             headerHeight = 75.dp,
-            actionBarHeight = 100.dp,
+            actionBarHeight = 100.dp
         )
     }
 }
@@ -51,5 +53,5 @@ data class SidekitSpacing(
 data class SidekitShapes(
     val item: RoundedCornerShape = RoundedCornerShape(36.dp),
     val actionButton: RoundedCornerShape = RoundedCornerShape(48.dp),
-    val control: RoundedCornerShape = RoundedCornerShape(12.dp),
+    val control: RoundedCornerShape = RoundedCornerShape(12.dp)
 )

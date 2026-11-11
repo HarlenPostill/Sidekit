@@ -5,6 +5,10 @@ plugins {
 
 android {
     namespace = "hrln.interactive.sidekit.sdk"
+
+    defaultConfig {
+        consumerProguardFiles("consumer-rules.pro")
+    }
 }
 
 sidekitPublish {

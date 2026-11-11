@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
+import hrln.interactive.sidekit.design.theme.CaseColour
 import hrln.interactive.sidekit.ui.SidekitPreviewFrame
 import org.junit.Assert.*
 import org.junit.Rule
@@ -25,6 +26,7 @@ class SettingsUiTest {
         compose.mainClock.advanceTimeBy(1000)
         compose.onNodeWithText(text).assertIsDisplayed()
     }
+
     @Test fun `case swatches update the theme selection and saved preference`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = SidekitPreferences(context)
@@ -33,7 +35,7 @@ class SettingsUiTest {
         compose.setContent {
             val selected = rememberCaseColour(prefs)
             hrln.interactive.sidekit.design.theme.SidekitTheme(
-                colors = selected?.palette() ?: hrln.interactive.sidekit.design.theme.SidekitColors(),
+                colors = selected?.palette() ?: hrln.interactive.sidekit.design.theme.SidekitColors()
             ) {
                 renderedColour = hrln.interactive.sidekit.design.theme.SidekitTheme.colors.primaryA1
                 hrln.interactive.sidekit.design.canvas.SidekitCanvas { CaseColourScreen {} }
@@ -80,8 +82,11 @@ class SettingsUiTest {
             // SidekitTheme directly, not SidekitPreviewFrame: the frame installs its own (standard)
             // spacing and would override the one under test.
             hrln.interactive.sidekit.design.theme.SidekitTheme(
-                spacing = if (compact.value) hrln.interactive.sidekit.design.theme.SidekitSpacing.Compact
-                else hrln.interactive.sidekit.design.theme.SidekitSpacing(),
+                spacing = if (compact.value) {
+                    hrln.interactive.sidekit.design.theme.SidekitSpacing.Compact
+                } else {
+                    hrln.interactive.sidekit.design.theme.SidekitSpacing()
+                }
             ) {
                 hrln.interactive.sidekit.design.canvas.SidekitCanvas { SettingsHome({}, {}) }
             }

@@ -1,7 +1,6 @@
 package hrln.interactive.sidekit.design.input
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.view.KeyEvent
 import android.view.ViewConfiguration
 import androidx.compose.runtime.Stable
@@ -10,25 +9,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.focus.FocusRequester
+import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.IOException
 
 /** The Sidephone's swappable keypad modules. */
 enum class KeypadModule(val label: String, val typesOnKeypad: Boolean) {
     /** Phone keypad with D-pad, OK and call keys. */
     T9("T9", true),
+
     /** Two letters per key, 20 keys. */
     Qwerty("Mini QWERTY", true),
+
     /** Click wheel with a centre button. */
     Sundial("Sundial", false),
+
     /** D-pad, A / B / X / Y and a shoulder key. */
-    GamePad("Game controller", false),
+    GamePad("Game controller", false)
 }
 
 /**
@@ -46,14 +48,14 @@ enum class KeypadModule(val label: String, val typesOnKeypad: Boolean) {
  */
 @Stable
 class Keypad internal constructor(
-    private val prefs: SharedPreferences?,
+    private val preferences: KeypadPreferences?,
     private val userWordsFile: File?,
     private val scope: CoroutineScope,
     private val loadWords: (suspend () -> T9Words)?,
     initialModule: KeypadModule,
     val longPressMs: Long = DEFAULT_LONG_PRESS_MS,
     /** Custom key mapping (off unless the user turns it on in Settings). */
-    val mapper: KeyMapper = KeyMapper.forTesting(),
+    val mapper: KeyMapper = KeyMapper.forTesting()
 ) {
     private var detected: KeypadModule by mutableStateOf(initialModule)
 
@@ -84,7 +86,7 @@ class Keypad internal constructor(
         if (detected == next) return
         if (module != (mapper.customModule ?: next)) session?.finish()
         detected = next
-        prefs?.edit()?.putString(PREF_MODULE, next.name)?.apply()
+        preferences?.writeModule(next)
         if (typing) loadResources()
     }
 
@@ -168,8 +170,12 @@ class Keypad internal constructor(
         session?.finish()
     }
 
-    internal fun registerFallback(focus: FocusRequester, activate: () -> Unit = {}) { fallbacks.add(TypingTarget(focus, activate)) }
-    internal fun unregisterFallback(focus: FocusRequester) { fallbacks.removeAll { it.focus === focus } }
+    internal fun registerFallback(focus: FocusRequester, activate: () -> Unit = {}) {
+        fallbacks.add(TypingTarget(focus, activate))
+    }
+    internal fun unregisterFallback(focus: FocusRequester) {
+        fallbacks.removeAll { it.focus === focus }
+    }
 
     private fun loadResources() {
         if (wordsJob != null || loadWords == null) return
@@ -216,8 +222,6 @@ class Keypad internal constructor(
     }
 
     companion object {
-        private const val PREF_T9 = "t9"
-        private const val PREF_MODULE = "module"
         private const val SAVE_DELAY_MS = 2_000L
         private const val DEFAULT_LONG_PRESS_MS = 450L
 
@@ -225,21 +229,22 @@ class Keypad internal constructor(
             code == KeyEvent.KEYCODE_STAR || code == KeyEvent.KEYCODE_POUND || code == KeyEvent.KEYCODE_DEL ||
             code in QwertyLayout.letters || code == KeyEvent.KEYCODE_SPACE
 
-        /** The keypad for this app. The dictionary loads off the main thread the first time T9 is used. */
-        fun create(context: Context, scope: CoroutineScope): Keypad {
+        /**
+         * The keypad for an app. [preferences] supplies the module choice and custom profiles;
+         * the dictionary loads off the main thread the first time T9 is used.
+         */
+        fun create(context: Context, scope: CoroutineScope, preferences: KeypadPreferences): Keypad {
             val app = context.applicationContext
-            val prefs = app.getSharedPreferences("sidekit_keypad", Context.MODE_PRIVATE)
             return Keypad(
-                prefs = prefs,
+                preferences = preferences,
                 userWordsFile = File(app.filesDir, "t9_user_words.txt"),
                 scope = scope,
                 loadWords = { app.assets.open("t9/en_words.txt").bufferedReader().use { T9Words.parse(it.readText()) } },
-                initialModule = prefs.getString(PREF_MODULE, null)
-                    ?.let { name -> KeypadModule.entries.firstOrNull { it.name == name } }
+                initialModule = preferences.module()
                     // Before modules were told apart, T9 was the only one that typed.
-                    ?: if (prefs.getBoolean(PREF_T9, true)) KeypadModule.T9 else KeypadModule.Sundial,
+                    ?: if (preferences.legacyT9()) KeypadModule.T9 else KeypadModule.Sundial,
                 longPressMs = ViewConfiguration.getLongPressTimeout().toLong(),
-                mapper = KeyMapper.create(prefs),
+                mapper = KeyMapper.create(preferences)
             )
         }
 
@@ -248,12 +253,11 @@ class Keypad internal constructor(
             scope: CoroutineScope,
             words: T9Words,
             module: KeypadModule = KeypadModule.T9,
-            mapper: KeyMapper = KeyMapper.forTesting(),
+            mapper: KeyMapper = KeyMapper.forTesting()
         ) = Keypad(null, null, scope, null, module, mapper = mapper).also { it.words = words }
     }
 }
 
-internal fun KeyEvent.withCode(code: Int) =
-    KeyEvent(downTime, eventTime, action, code, repeatCount, metaState, deviceId, scanCode, flags, source)
+internal fun KeyEvent.withCode(code: Int) = KeyEvent(downTime, eventTime, action, code, repeatCount, metaState, deviceId, scanCode, flags, source)
 
 val LocalKeypad = staticCompositionLocalOf<Keypad?> { null }

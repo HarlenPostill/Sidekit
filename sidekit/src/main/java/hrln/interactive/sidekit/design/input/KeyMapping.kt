@@ -1,6 +1,5 @@
 package hrln.interactive.sidekit.design.input
 
-import android.content.SharedPreferences
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import androidx.compose.runtime.Stable
@@ -54,13 +53,14 @@ class KeypadControl(val keyCode: Int, val label: String, val hint: String)
 object KeypadControls {
     fun of(module: KeypadModule): List<KeypadControl> = when (module) {
         KeypadModule.T9 -> system + dpad + listOf(
-            control(KeyEvent.KEYCODE_ENTER, "OK", "Select, or take a suggestion"),
+            control(KeyEvent.KEYCODE_ENTER, "OK", "Select, or take a suggestion")
         ) + (1..9).map { digit(it) } + listOf(
             control(KeyEvent.KEYCODE_STAR, "*", "Punctuation and symbols"),
             digit(0),
             control(KeyEvent.KEYCODE_POUND, "#", "Case; hold for numbers"),
-            control(KeyEvent.KEYCODE_DEL, "Delete", "Delete the previous character"),
+            control(KeyEvent.KEYCODE_DEL, "Delete", "Delete the previous character")
         )
+
         KeypadModule.Qwerty -> system + QwertyLayout.letters.map { (code, letters) ->
             control(code, letters.uppercase(), "Hold for ${QwertyLayout.printed[code]}")
         } + listOf(
@@ -69,8 +69,9 @@ object KeypadControls {
             control(KeyEvent.KEYCODE_ENTER, "Enter", "New line, or take a suggestion"),
             control(QwertyLayout.SUGGEST, "↕", "Next suggestion"),
             control(QwertyLayout.SYM, "SYM", "Symbols"),
-            control(QwertyLayout.CASE, "aA", "Case; hold for numbers"),
+            control(QwertyLayout.CASE, "aA", "Case; hold for numbers")
         )
+
         KeypadModule.Sundial -> system + listOf(
             control(KeyEvent.KEYCODE_DPAD_UP, "Top", "Move up"),
             control(KeyEvent.KEYCODE_MEDIA_NEXT, "Right edge", "Next track"),
@@ -80,14 +81,15 @@ object KeypadControls {
             control(KeyEvent.KEYCODE_DPAD_LEFT, "Corner ←", "Move left"),
             control(KeyEvent.KEYCODE_DPAD_RIGHT, "Corner →", "Move right"),
             control(KeyEvent.KEYCODE_TAB, "Tab", "Next control"),
-            control(KeyEvent.KEYCODE_ENTER, "Enter", "Select"),
+            control(KeyEvent.KEYCODE_ENTER, "Enter", "Select")
         )
+
         KeypadModule.GamePad -> system + dpad + listOf(
             control(KeyEvent.KEYCODE_BUTTON_A, "A", "Confirm"),
             control(KeyEvent.KEYCODE_BUTTON_B, "B", "Back in games"),
             control(KeyEvent.KEYCODE_BUTTON_X, "X", "Game action"),
             control(KeyEvent.KEYCODE_BUTTON_Y, "Y", "Game action"),
-            control(KeyEvent.KEYCODE_BUTTON_L1, "Shoulder", "Game action"),
+            control(KeyEvent.KEYCODE_BUTTON_L1, "Shoulder", "Game action")
         )
     }
 
@@ -96,20 +98,30 @@ object KeypadControls {
     private fun control(code: Int, label: String, hint: String) = KeypadControl(code, label, hint)
     private fun digit(n: Int): KeypadControl {
         val letters = listOf("", "", "abc", "def", "ghi", "jkl", "mno", "pqrs", "tuv", "wxyz")[n]
-        return control(KeyEvent.KEYCODE_0 + n, if (letters.isEmpty()) "$n" else "$n $letters", if (n == 0) "Space; hold for 0" else if (n == 1) "Punctuation; hold for 1" else "Letters; hold for $n")
+        return control(
+            KeyEvent.KEYCODE_0 + n,
+            if (letters.isEmpty()) "$n" else "$n $letters",
+            if (n == 0) {
+                "Space; hold for 0"
+            } else if (n == 1) {
+                "Punctuation; hold for 1"
+            } else {
+                "Letters; hold for $n"
+            }
+        )
     }
 
     private val system = listOf(
         // Back is the plain Back key here: the Sidephone's top-left key (CALL) only becomes Back
         // through the keypad accessibility service, which keeps working whatever is mapped.
         control(KeyEvent.KEYCODE_BACK, "Back", "Go back a screen"),
-        control(KeyEvent.KEYCODE_ENDCALL, "Options", "Show the screen's extra actions"),
+        control(KeyEvent.KEYCODE_ENDCALL, "Options", "Show the screen's extra actions")
     )
     private val dpad = listOf(
         control(KeyEvent.KEYCODE_DPAD_UP, "Up", "Move up"),
         control(KeyEvent.KEYCODE_DPAD_DOWN, "Down", "Move down"),
         control(KeyEvent.KEYCODE_DPAD_LEFT, "Left", "Move left; cursor"),
-        control(KeyEvent.KEYCODE_DPAD_RIGHT, "Right", "Move right; cursor"),
+        control(KeyEvent.KEYCODE_DPAD_RIGHT, "Right", "Move right; cursor")
     )
 }
 
@@ -128,8 +140,8 @@ object KeypadControls {
  */
 @Stable
 class KeyMapper internal constructor(
-    private val prefs: SharedPreferences?,
-    private val deviceName: (KeyEvent) -> String = ::defaultDeviceName,
+    private val preferences: KeypadPreferences?,
+    private val deviceName: (KeyEvent) -> String = ::defaultDeviceName
 ) {
     /** The module the custom mapping is for, or null for automatic detection. */
     var customModule: KeypadModule? by mutableStateOf(null)
@@ -143,14 +155,9 @@ class KeyMapper internal constructor(
     private var capture: ((PhysicalKey, KeyEvent) -> Boolean)? = null
     private var watcher: ((PhysicalKey, KeyEvent) -> Unit)? = null
 
-    // Held strongly: SharedPreferences keeps listeners weakly.
-    private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == null || key == PREF_CUSTOM || key.startsWith(PREF_PROFILE)) load()
-    }
-
     init {
         load()
-        prefs?.registerOnSharedPreferenceChangeListener(listener)
+        preferences?.observe { load() }
     }
 
     /** Keys bound in [module]'s profile, by the control they were bound to. */
@@ -159,7 +166,7 @@ class KeyMapper internal constructor(
     internal fun setCustom(module: KeypadModule?) {
         if (customModule == module) return
         customModule = module
-        prefs?.edit()?.apply { if (module == null) remove(PREF_CUSTOM) else putString(PREF_CUSTOM, module.name) }?.apply()
+        preferences?.writeCustomModule(module)
     }
 
     /**
@@ -174,8 +181,7 @@ class KeyMapper internal constructor(
     }
 
     /** The control [key] is bound to in [module], if any. */
-    fun controlFor(module: KeypadModule, key: PhysicalKey): Int? =
-        bindings(module).entries.firstOrNull { it.value == key }?.key
+    fun controlFor(module: KeypadModule, key: PhysicalKey): Int? = bindings(module).entries.firstOrNull { it.value == key }?.key
 
     fun reset(module: KeypadModule, controlCode: Int) = save(module, bindings(module) - controlCode)
 
@@ -229,6 +235,7 @@ class KeyMapper internal constructor(
                 val taken = capture?.invoke(key, event) == true
                 (if (taken) SWALLOWED else mappedCode(key)).also { held[key] = it }
             }
+
             // A release finishes the press the way it started, even if the mapping changed meanwhile.
             else -> held.remove(key) ?: if (capture != null) SWALLOWED else mappedCode(key)
         }
@@ -244,51 +251,38 @@ class KeyMapper internal constructor(
     }
 
     private fun load() {
-        val p = prefs ?: return
-        customModule = p.getString(PREF_CUSTOM, null)?.let { name -> KeypadModule.entries.firstOrNull { it.name == name } }
-        profiles = KeypadModule.entries.associateWith { module ->
-            p.getStringSet(PREF_PROFILE + module.name, emptySet()).orEmpty().mapNotNull(::decode).toMap()
-        }
+        val p = preferences ?: return
+        customModule = p.customModule()
+        profiles = KeypadModule.entries.associateWith { module -> p.profiles(module) }
     }
 
     private fun save(module: KeypadModule, bindings: Map<Int, PhysicalKey>) {
         profiles = profiles + (module to bindings)
-        prefs?.edit()?.putStringSet(PREF_PROFILE + module.name, bindings.map { (control, key) -> encode(control, key) }.toSet())?.apply()
+        preferences?.writeProfile(module, bindings)
     }
 
     companion object {
-        private const val PREF_CUSTOM = "custom_module"
-        private const val PREF_PROFILE = "profile."
         private const val SWALLOWED = Int.MIN_VALUE
 
-        /** "control|keyCode|scanCode|device": the device name goes last because it may hold anything. */
-        private fun encode(control: Int, key: PhysicalKey) = "$control|${key.keyCode}|${key.scanCode}|${key.device}"
+        private fun defaultDeviceName(event: KeyEvent): String = event.device?.name ?: if (event.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD) "Virtual" else ""
 
-        private fun decode(entry: String): Pair<Int, PhysicalKey>? {
-            val parts = entry.split('|', limit = 4)
-            if (parts.size != 4) return null
-            val control = parts[0].toIntOrNull() ?: return null
-            val code = parts[1].toIntOrNull() ?: return null
-            val scan = parts[2].toIntOrNull() ?: return null
-            return control to PhysicalKey(parts[3], code, scan)
-        }
-
-        private fun defaultDeviceName(event: KeyEvent): String =
-            event.device?.name ?: if (event.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD) "Virtual" else ""
-
-        /** A mapper that saves to [prefs] (the keypad's own preferences). */
-        fun create(prefs: SharedPreferences?): KeyMapper = KeyMapper(prefs)
+        /** A mapper that saves to [preferences] (the keypad's configuration store). */
+        fun create(preferences: KeypadPreferences): KeyMapper = KeyMapper(preferences)
 
         /** A mapper for tests, with a fixed way of naming devices. */
-        fun forTesting(prefs: SharedPreferences? = null, deviceName: (KeyEvent) -> String = { "" }) = KeyMapper(prefs, deviceName)
+        fun forTesting(preferences: KeypadPreferences? = null, deviceName: (KeyEvent) -> String = { "" }) = KeyMapper(preferences, deviceName)
     }
 }
 
 private class Translation(
-    val event: KeyEvent, val action: Int, val keyCode: Int, val downTime: Long, val eventTime: Long, val repeat: Int,
-    val out: KeyEvent?,
+    val event: KeyEvent,
+    val action: Int,
+    val keyCode: Int,
+    val downTime: Long,
+    val eventTime: Long,
+    val repeat: Int,
+    val out: KeyEvent?
 ) {
     fun matches(e: KeyEvent) = e === event && e.action == action && e.keyCode == keyCode && e.downTime == downTime &&
         e.eventTime == eventTime && e.repeatCount == repeat
 }
-
