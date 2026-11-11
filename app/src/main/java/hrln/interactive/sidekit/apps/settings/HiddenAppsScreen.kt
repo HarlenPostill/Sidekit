@@ -14,6 +14,8 @@ import hrln.interactive.sidekit.apps.sideport.registry.PortedApps
 import hrln.interactive.sidekit.design.action.SideAction
 import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
+import hrln.interactive.sidekit.launcher.NativeApp
+import hrln.interactive.sidekit.launcher.NativeApps
 import hrln.interactive.sidekit.navigation.SubApp
 
 internal fun SubApp.visibilityId() = "builtin:$name"
@@ -36,15 +38,16 @@ internal fun HiddenAppsScreen(back: () -> Unit) {
     val prefs = remember(context) { SidekitPreferences(context) }
     val hidden = rememberHiddenApps(prefs)
     val ported by remember { PortedApps.get(context).apps }.collectAsStateWithLifecycle()
+    val native = remember(context) { NativeApps.discover(context) }
     SidekitScaffold("Hide apps", actions = listOf(SideAction.back("back", "Settings", back))) { padding ->
-        SidekitList(padding) { hiddenAppChoices(hidden, ported) { prefs.hiddenApps = it } }
+        SidekitList(padding) { hiddenAppChoices(hidden, ported, native) { prefs.hiddenApps = it } }
     }
 }
 
-internal fun LazyListScope.hiddenAppChoices(hidden: Set<String>, ported: List<PortedApp>, save: (Set<String>) -> Unit) {
+internal fun LazyListScope.hiddenAppChoices(hidden: Set<String>, ported: List<PortedApp>, native: List<NativeApp> = emptyList(), save: (Set<String>) -> Unit) {
     item { SidekitText("Hide apps from home, search and the dock. Tap again to restore. Apps stay installed; Settings remains in Options.", style = SidekitTheme.typography.label.copy(fontSize = 24.sp, lineHeight = 30.sp), maxLines = Int.MAX_VALUE) }
     item { SidekitLineButton("Show all apps", { save(emptySet()) }, modifier = Modifier.height(64.dp), variant = LineButtonVariant.Secondary) }
-    val choices = SubApp.entries.map { it.visibilityId() to it.label } + ported.map { it.visibilityId() to it.label }
+    val choices = SubApp.entries.map { it.visibilityId() to it.label } + ported.map { it.visibilityId() to it.label } + native.map { it.visibilityId to it.label }
     items(choices, key = { it.first }) { (id, label) ->
         SidekitItem(label, Modifier.height(76.dp), secondary = if (id in hidden) "Hidden" else "Shown", onClick = {
             save(if (id in hidden) hidden - id else hidden + id)

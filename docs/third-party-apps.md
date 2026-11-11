@@ -1,6 +1,6 @@
 # Third-party apps and shared user configuration
 
-**Status:** In progress — tasks 1–3 complete and verified; task 4 next
+**Status:** In progress — tasks 1–5 implemented; task 6 next
 **Date:** 11 November 2026
 **Branch:** `feat/third-party-apps`
 
@@ -56,30 +56,30 @@ Checked items are already in this branch. Unchecked items follow the recommended
 
 ### 4. Implement provider and client
 
-- [ ] Implement `SidekitConfigProvider` in `:app`: `getVersion`, `getConfig`, explicit
+- [x] Implement `SidekitConfigProvider` in `:app`: `getVersion`, `getConfig`, explicit
   `checkCallingPermission`, `notifyChange`, and no write/file methods.
-- [ ] Implement `SidekitConfigClient.status/read/observe`, including stable/dev authority
+- [x] Implement `SidekitConfigClient.status/read/observe`, including stable/dev authority
   probing and the host-authority intent extra.
-- [ ] Add round-trip, permission-denial, dev-authority and `notifyChange` tests.
-- [ ] Add a lint or test guard that the provider is exported only with the read permission.
+- [x] Add round-trip, permission-denial, dev-authority and `notifyChange` tests.
+- [x] Add a lint or test guard that the provider is exported only with the read permission.
 
 ### 5. Native third-party launcher entries
 
-- [ ] Define the `NATIVE_APP` manifest contract and matching `<queries>` in `:app`.
-- [ ] Add `NativeAppEntry` while keeping `BuiltinEntry` and `PortedEntry` unchanged.
-- [ ] Update `LauncherRoute`, `LauncherScreen`, `HomePreferences`, `HomeArranger`,
+- [x] Define the `NATIVE_APP` manifest contract and matching `<queries>` in `:app`.
+- [x] Add `NativeAppEntry` while keeping `BuiltinEntry` and `PortedEntry` unchanged.
+- [x] Update `LauncherRoute`, `LauncherScreen`, `HomePreferences`, `HomeArranger`,
   `ArrangeHomeScreen`, `HiddenAppsScreen` and search for native app ids.
-- [ ] Launch native apps with an explicit intent and `EXTRA_HOST_AUTHORITY`.
+- [x] Launch native apps with an explicit intent and `EXTRA_HOST_AUTHORITY`.
 - [ ] Remove `SubApp.Sideplay` and the embedded `apps/spotify` graph once Sideplay ships
-  standalone.
+  standalone. Neither is present on this branch.
 
 ### 6. Sideplay repository (separate repository)
 
 - [ ] Depend on the published `sidekit-design` and `sidekit-sdk` artifacts.
 - [ ] Build its own `MainActivity` on the SDK shell and move Sideplay-specific components.
 - [ ] Select host or local stores from `SidekitConfigClient.status`.
-- [ ] Accept the credentials/queue/history reset, or add an explicit one-time export before
-  removing the embedded app.
+- [x] Accept the credentials/queue/history reset. No one-time export or data transfer is
+  required when the embedded app is removed.
 
 ### Cross-cutting
 
@@ -345,6 +345,26 @@ built with the SDK. The two must not be conflated.
 - When Sideplay ships standalone, remove `SubApp.Sideplay` and the embedded `apps/spotify`
   graph from this repository so the launcher has exactly one entry for it.
 
+A native app advertises its launcher entry activity:
+
+```xml
+<activity android:name=".MainActivity" android:exported="true">
+    <intent-filter>
+        <action android:name="hrln.interactive.sidekit.action.NATIVE_APP" />
+        <category android:name="android.intent.category.DEFAULT" />
+    </intent-filter>
+    <meta-data android:name="hrln.interactive.sidekit.app.ID" android:value="sideplay" />
+    <meta-data android:name="hrln.interactive.sidekit.app.MIN_SCHEMA" android:value="1" />
+    <meta-data android:name="hrln.interactive.sidekit.app.LAUNCH_ROUTE" android:value="home" />
+</activity>
+```
+
+The launcher shows at most one tile per package, with id `native:<package>` and the label and
+icon from `PackageManager`. A descriptor whose `MIN_SCHEMA` is newer than the host's schema is
+ignored. Launching uses an explicit intent to the advertised activity plus
+`EXTRA_HOST_AUTHORITY`, so the app reads the configuration of the Sidekit build that launched
+it. The descriptor only controls tile placement; it is not a trust signal.
+
 ## 6. What this enables in the Sideplay repository
 
 - Depend on `sidekit-design` and `sidekit-sdk` artifacts instead of copying `:sidekit`
@@ -367,9 +387,9 @@ built with the SDK. The two must not be conflated.
   `noBackupFilesDir` through `PrivateSettings`. Queue and history files
   (`sidetracks-queue.bin`, `sidetracks-history.bin`) also live in Sidekit's private
   storage. A standalone Sideplay cannot read them. Users will need to sign in again, and
-  local history and queue will reset. Accept that cost, or add an explicit one-time export
-  from the embedded Sideplay before removal. Never expose tokens through the config
-  provider.
+  local history and queue will reset. **Accepted for v1: moving Sideplay to its own
+  repository is a complete data reset. No one-time export or data transfer is required.**
+  Never expose tokens through the config provider.
 - **Enum forward compatibility.** Older Sideplay builds must fall back to the default blue
   or default module when they see an unknown `CaseColour` or `KeypadModule` name. The SDK
   should centralise that fallback.
@@ -432,3 +452,5 @@ Decided on 11 November 2026:
 - **Accessibility service:** Sidekit keeps the keypad accessibility service. Sideplay ships a
   copy for standalone use and hides its setting when Sidekit is available, accepting the
   duplicate accessibility entry when both apps are installed.
+- **Sideplay migration data:** accept a complete reset of credentials, queue and history. No
+  one-time export or cross-app data transfer is required.

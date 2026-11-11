@@ -24,6 +24,7 @@ import hrln.interactive.sidekit.design.action.SideAction
 import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.input.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
+import hrln.interactive.sidekit.launcher.NativeApps
 import hrln.interactive.sidekit.sdk.theme.caseColourChoices
 
 @Composable
@@ -36,6 +37,7 @@ internal fun OnboardingScreen(onFinish: () -> Unit, replay: Boolean = false) {
     val keypad = LocalKeypad.current
     val hidden = rememberHiddenApps(prefs)
     val ported by remember { PortedApps.get(context).apps }.collectAsStateWithLifecycle()
+    val native = remember(context) { NativeApps.discover(context) }
     val selectedColour = rememberCaseColour(prefs)
     var listLayout by remember { mutableStateOf(prefs.listLayout) }
     var inputMode by remember { mutableStateOf(prefs.inputMode) }
@@ -131,7 +133,7 @@ internal fun OnboardingScreen(onFinish: () -> Unit, replay: Boolean = false) {
                         }
                     }
 
-                    3 -> hiddenAppChoices(hidden, ported) { prefs.hiddenApps = it }
+                    3 -> hiddenAppChoices(hidden, ported, native) { prefs.hiddenApps = it }
 
                     4 -> {
                         item { Copy("You’re in control", "Enable access for the features you want, or continue without it. Status updates when you return.") }
