@@ -1,6 +1,6 @@
 # Third-party apps and shared user configuration
 
-**Status:** In progress — tasks 1–5 implemented; local publishing validation, host-store factory, capability checks, About disclosure and the cross-UID permission test added; GitHub Packages publication next
+**Status:** In progress — tasks 1–5 implemented; local publishing validation, host-store factory, capability checks, About disclosure, the cross-UID permission test and GitHub Packages publication added; first tagged release next
 **Date:** 11 November 2026
 **Branch:** `feat/third-party-apps`
 
@@ -33,7 +33,8 @@ Checked items are already in this branch. Unchecked items follow the recommended
 - [x] Add `:sample-app` as a consumer smoke module and wire it into CI.
 - [x] Add a local staging publication and a CI consumer build against the published coordinates
   so missing POM dependencies and transitive `sidekit-design` resolution are caught.
-- [ ] Publish to GitHub Packages and make the published coordinates the default for `:sample-app`.
+- [x] Publish to GitHub Packages from the `Publish SDK` workflow on `v*` tags.
+- [ ] Make the published coordinates the default for `:sample-app` after the first release.
 
 ### 3. Introduce `:sidekit-sdk` and store abstractions
 

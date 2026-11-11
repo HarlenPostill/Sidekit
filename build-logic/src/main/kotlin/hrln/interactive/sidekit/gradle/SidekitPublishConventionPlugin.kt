@@ -12,8 +12,8 @@ import org.gradle.kotlin.dsl.create
  * Maven publication for a Sidekit Android library.
  *
  * A local staging repository is configured so CI can build a consumer against the published
- * coordinates without credentials. The real artifact host is still an open distribution
- * decision; add it wherever the artifacts are released.
+ * coordinates without credentials. GitHub Packages is added when `-PsidekitPublishGitHub=true`
+ * is set, using the workflow's `GITHUB_REPOSITORY`, `GITHUB_ACTOR` and `GITHUB_TOKEN`.
  */
 class SidekitPublishConventionPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -21,11 +21,34 @@ class SidekitPublishConventionPlugin : Plugin<Project> {
         project.group = "hrln.interactive.sidekit"
         project.version = GitVersion.name(project)
 
+        val publishGitHub = project.providers.gradleProperty("sidekitPublishGitHub")
+            .map(String::toBoolean)
+            .getOrElse(false)
+        val githubRepository = project.providers.environmentVariable("GITHUB_REPOSITORY").orNull
+        val githubToken = project.providers.environmentVariable("GITHUB_TOKEN").orNull
+        val githubActor = project.providers.environmentVariable("GITHUB_ACTOR").orNull
+
         project.extensions.configure<PublishingExtension> {
             repositories {
                 maven {
                     name = "sidekitLocal"
                     url = project.rootProject.layout.buildDirectory.dir("local-repo").get().asFile.toURI()
+                }
+                if (publishGitHub) {
+                    require(!githubRepository.isNullOrBlank()) {
+                        "GITHUB_REPOSITORY is required when publishing to GitHub Packages."
+                    }
+                    require(!githubToken.isNullOrBlank()) {
+                        "GITHUB_TOKEN is required when publishing to GitHub Packages."
+                    }
+                    maven {
+                        name = "sidekitGitHub"
+                        url = project.uri("https://maven.pkg.github.com/$githubRepository")
+                        credentials {
+                            username = githubActor ?: "github"
+                            password = githubToken
+                        }
+                    }
                 }
             }
         }

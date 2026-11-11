@@ -47,7 +47,10 @@ SDK-built apps can read the theme and keypad setup.
 - [x] **Validate publishing locally.** The publish convention now stages artifacts in
       `build/local-repo`, and the `Published SDK consumer` CI job builds `:sample-app` with
       `-PsidekitUsePublished=true` against `hrln.interactive.sidekit:sidekit-sdk:<version>`.
-      Publishing to the real host (GitHub Packages) is still pending.
+- [x] **Publish to GitHub Packages.** `-PsidekitPublishGitHub=true` adds the
+      `sidekitGitHub` repository, and the `Publish SDK` workflow publishes both libraries on
+      `v*` tags with `packages: write`. Making the published coordinates the default for
+      `:sample-app` waits for the first release.
 - [x] **Add the Settings/About disclosure.** About now says that SDK-built apps can read the case
       colour and keypad setup, and names what stays private.
 - [x] **Add a separate-APK acceptance test.** `:sample-app` is a separate APK and now has an
