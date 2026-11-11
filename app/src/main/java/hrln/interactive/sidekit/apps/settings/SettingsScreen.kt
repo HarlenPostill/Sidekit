@@ -96,7 +96,12 @@ internal fun SettingsHome(onHome: () -> Unit, onAbout: () -> Unit, onCaseColour:
             item { SidekitItem("Arrange apps", Modifier.height(CompactRowHeight).listFade(list, 1), secondary = "Home order & dock", onClick = onArrange) }
             item { SidekitItem("Case colour", Modifier.height(CompactRowHeight).listFade(list, 2), secondary = caseColour?.label ?: "Original blue", onClick = onCaseColour) }
             // Shorter header and action bar on every screen: more room for the body.
-            item { SidekitItem("Compact layout", Modifier.height(CompactRowHeight).listFade(list, 3), secondary = if (compactLayout) "On" else "Off", onClick = { prefs.compactLayout = !prefs.compactLayout; revision++ }) }
+            item {
+                SidekitItem("Compact layout", Modifier.height(CompactRowHeight).listFade(list, 3), secondary = if (compactLayout) "On" else "Off", onClick = {
+                    prefs.compactLayout = !prefs.compactLayout
+                    revision++
+                })
+            }
             // Detected from the keys pressed; tapping overrides it until another module's key is seen.
             // A custom mapping fixes the module, so then the row opens the mapping instead.
             val custom = keypad?.mapper?.customModule
@@ -163,7 +168,16 @@ private fun AboutScreen(back: () -> Unit) {
     // name, and names itself and its package on its own row.
     val appName = stringResource(R.string.app_name)
     val devBuild = context.resources.getBoolean(R.bool.is_dev_build)
-    var rows by remember { mutableStateOf(listOf("Device" to "${Build.MANUFACTURER} ${Build.MODEL}", "Android" to "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})", "Build" to Build.DISPLAY)) }
+    var rows by remember {
+        mutableStateOf(
+            listOf(
+                "Device" to "${Build.MANUFACTURER} ${Build.MODEL}",
+                "Android" to "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                "Build" to Build.DISPLAY,
+                "Third-party apps" to "Apps built with the Sidekit SDK can read your case colour and keypad setup. They cannot read messages, credentials, hidden apps or home order."
+            )
+        )
+    }
     LaunchedEffect(Unit) {
         val summaries = withContext(Dispatchers.IO) {
             val memory = ActivityManager.MemoryInfo().also { context.getSystemService(ActivityManager::class.java).getMemoryInfo(it) }

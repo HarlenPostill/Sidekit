@@ -113,10 +113,9 @@ fun LauncherRoute(
     }
     val ported by remember { PortedApps.get(context).apps }.collectAsStateWithLifecycle()
     // Installed native apps change while the launcher is alive, so refresh on every resume.
-    var nativeApps by remember(context) { mutableStateOf(NativeApps.discover(context)) }
+    val nativeApps = rememberNativeApps(refreshOnResume = true)
     androidx.lifecycle.compose.LifecycleResumeEffect(viewModel) {
         viewModel.loadPreferences(context)
-        nativeApps = NativeApps.discover(context)
         onPauseOrDispose {}
     }
     val state by viewModel.state.collectAsStateWithLifecycle()

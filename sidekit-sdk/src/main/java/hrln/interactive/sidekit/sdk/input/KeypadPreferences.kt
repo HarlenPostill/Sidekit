@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import hrln.interactive.sidekit.design.input.KeypadModule
 import hrln.interactive.sidekit.design.input.KeypadPreferences
 import hrln.interactive.sidekit.design.input.PhysicalKey
+import hrln.interactive.sidekit.sdk.SidekitContract
+import hrln.interactive.sidekit.sdk.config.CachingSidekitConfigSource
 import hrln.interactive.sidekit.sdk.config.SidekitConfig
 import hrln.interactive.sidekit.sdk.config.SidekitConfigSource
 import hrln.interactive.sidekit.sdk.config.SidekitPreferenceFiles
@@ -91,17 +93,19 @@ class SharedPreferencesKeypadPreferences(
  * never change it. The source's snapshot already contains the host's active module, custom
  * module and per-module profiles.
  */
-class HostKeypadPreferences(private val source: SidekitConfigSource) : KeypadPreferences {
-    override fun module(): KeypadModule? = source.read()?.keypadModuleOrDefault()
+class HostKeypadPreferences(source: SidekitConfigSource) : KeypadPreferences {
+    private val source = CachingSidekitConfigSource(source)
+
+    override fun module(): KeypadModule? = snapshot()?.keypadModuleOrDefault()
 
     // A host snapshot without a module means "not configured yet"; T9 is the safe default.
     override fun legacyT9(): Boolean = true
 
-    override fun customModule(): KeypadModule? = source.read()?.customModuleOrDefault()
+    override fun customModule(): KeypadModule? = snapshot()?.customModuleOrDefault()
 
     override fun profiles(module: KeypadModule): Map<Int, PhysicalKey> = snapshot()?.profiles?.get(module.name).orEmpty()
 
     override fun observe(onChange: () -> Unit): () -> Unit = source.observe { onChange() }
 
-    private fun snapshot(): SidekitConfig? = source.read()
+    private fun snapshot(): SidekitConfig? = source.read()?.takeIf { it.hasCapability(SidekitContract.CAPABILITY_KEYPAD) }
 }

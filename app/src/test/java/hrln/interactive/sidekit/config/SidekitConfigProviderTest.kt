@@ -111,6 +111,29 @@ class SidekitConfigProviderTest {
     }
 
     @Test
+    fun `private preference changes do not notify content observers`() {
+        val provider = provider()
+        val changes = AtomicInteger()
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                changes.incrementAndGet()
+            }
+        }
+        context.contentResolver.registerContentObserver(configUri, true, observer)
+        try {
+            SidekitPreferences(context).apply {
+                hiddenApps = setOf("builtin:Mail")
+                setupStep = 3
+                listLayout = true
+            }
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(0, changes.get())
+        } finally {
+            context.contentResolver.unregisterContentObserver(observer)
+        }
+    }
+
+    @Test
     fun `the provider is exported read-only with the SDK permission`() {
         val info = context.packageManager.getProviderInfo(
             android.content.ComponentName(context, SidekitConfigProvider::class.java),
@@ -147,16 +170,33 @@ class SidekitConfigProviderTest {
     }
 
     @Test
+    fun `known authorities map to their Sidekit packages`() {
+        assertEquals(SidekitContract.PACKAGE_STABLE, SidekitContract.packageForAuthority(SidekitContract.AUTHORITY_STABLE))
+        assertEquals(SidekitContract.PACKAGE_DEV, SidekitContract.packageForAuthority(SidekitContract.AUTHORITY_DEV))
+        assertNull(SidekitContract.packageForAuthority("com.example.evil.config"))
+    }
+
+    @Test
     fun `client honours a host authority passed by the launcher`() {
         val intent = Intent().putExtra(SidekitContract.EXTRA_HOST_AUTHORITY, SidekitContract.AUTHORITY_DEV)
         assertEquals(SidekitContract.AUTHORITY_DEV, SidekitConfigClient.authorityFrom(intent))
         assertNull(SidekitConfigClient.authorityFrom(null))
+        assertNull(SidekitConfigClient.authorityFrom(Intent().putExtra(SidekitContract.EXTRA_HOST_AUTHORITY, "com.example.evil.config")))
 
         registerHost(SidekitContract.AUTHORITY_STABLE, SidekitConfig(caseColour = CaseColour.Lime.name))
         assertEquals(
             HostStatus.NotInstalled,
             SidekitConfigClient.status(context, "com.example.missing.config")
         )
+    }
+
+    @Test
+    fun `a missing dev host falls back to the stable host`() {
+        registerHost(SidekitContract.AUTHORITY_STABLE, SidekitConfig(caseColour = CaseColour.Lime.name))
+
+        assertEquals(HostStatus.Available, SidekitConfigClient.status(context, SidekitContract.AUTHORITY_DEV))
+        assertEquals(SidekitContract.AUTHORITY_STABLE, SidekitConfigClient.hostAuthority(context, SidekitContract.AUTHORITY_DEV))
+        assertEquals(CaseColour.Lime.name, SidekitConfigClient.read(context, SidekitContract.AUTHORITY_DEV)?.caseColour)
     }
 
     @Test
@@ -214,7 +254,7 @@ class SidekitConfigProviderTest {
         shadowOf(context.packageManager).addOrUpdateProvider(
             ProviderInfo().apply {
                 name = provider.javaClass.name
-                packageName = context.packageName
+                packageName = SidekitContract.packageForAuthority(authority) ?: context.packageName
                 this.authority = authority
                 exported = true
             }

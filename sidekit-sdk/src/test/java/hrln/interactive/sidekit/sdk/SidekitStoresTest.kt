@@ -6,6 +6,7 @@ import hrln.interactive.sidekit.design.input.PhysicalKey
 import hrln.interactive.sidekit.design.input.T9Mode
 import hrln.interactive.sidekit.design.theme.CaseColour
 import hrln.interactive.sidekit.sdk.config.SidekitConfig
+import hrln.interactive.sidekit.sdk.config.SidekitConfigSource
 import hrln.interactive.sidekit.sdk.config.StaticSidekitConfigSource
 import hrln.interactive.sidekit.sdk.input.HostKeypadPreferences
 import hrln.interactive.sidekit.sdk.theme.HostSidekitThemeStore
@@ -38,6 +39,33 @@ class SidekitStoresTest {
         assertTrue(theme.compact)
     }
 
+    @Test fun hostStoresIgnoreCapabilitiesTheHostDidNotAdvertise() {
+        val source = StaticSidekitConfigSource(
+            SidekitConfig(
+                capabilities = emptyList(),
+                caseColour = "Lime",
+                compactLayout = true,
+                keypadModule = KeypadModule.T9.name,
+                profiles = mapOf(KeypadModule.T9.name to mapOf(131 to PhysicalKey("Keypad", 131)))
+            )
+        )
+
+        assertNull(HostSidekitThemeStore(source).read().caseColour)
+        assertNull(HostKeypadPreferences(source).module())
+        assertTrue(HostKeypadPreferences(source).profiles(KeypadModule.T9).isEmpty())
+    }
+
+    @Test fun hostKeypadCachesTheSnapshotUntilTheHostChanges() {
+        val source = CountingSource(SidekitConfig(keypadModule = KeypadModule.T9.name))
+        val keypad = HostKeypadPreferences(source)
+
+        keypad.module()
+        keypad.customModule()
+        keypad.profiles(KeypadModule.T9)
+
+        assertEquals(1, source.reads)
+    }
+
     @Test fun hostKeypadReadsTheActiveProfile() {
         val key = PhysicalKey("Keypad", 131)
         val source = StaticSidekitConfigSource(
@@ -51,5 +79,15 @@ class SidekitStoresTest {
         assertEquals(KeypadModule.T9, keypad.module())
         assertEquals(KeypadModule.T9, keypad.customModule())
         assertEquals(mapOf(131 to key), keypad.profiles(KeypadModule.T9))
+    }
+
+    private class CountingSource(private val config: SidekitConfig) : SidekitConfigSource {
+        var reads = 0
+        override fun read(): SidekitConfig {
+            reads++
+            return config
+        }
+
+        override fun observe(onChange: (SidekitConfig?) -> Unit): () -> Unit = {}
     }
 }

@@ -15,7 +15,7 @@ import hrln.interactive.sidekit.sdk.SidekitContract
 data class SidekitConfig(
     val schema: Int = SidekitContract.SCHEMA_VERSION,
     val hostVersion: String = "",
-    val capabilities: List<String> = emptyList(),
+    val capabilities: List<String> = SidekitContract.CAPABILITIES,
     val setupComplete: Boolean = false,
     val caseColour: String? = null,
     val compactLayout: Boolean = false,
@@ -39,6 +39,9 @@ data class SidekitConfig(
 
     /** True when this host understands the schema this SDK was built against. */
     fun isCompatible(): Boolean = schema in 1..SidekitContract.SCHEMA_VERSION
+
+    /** Whether the host advertised [capability] in its version response. */
+    fun hasCapability(capability: String): Boolean = capability in capabilities
 }
 
 /**
@@ -56,4 +59,33 @@ interface SidekitConfigSource {
 class StaticSidekitConfigSource(private val config: SidekitConfig?) : SidekitConfigSource {
     override fun read(): SidekitConfig? = config
     override fun observe(onChange: (SidekitConfig?) -> Unit): () -> Unit = {}
+}
+
+/**
+ * Keeps one snapshot until the host says it changed.
+ *
+ * A host read is a binder round-trip (and [SidekitConfigClient] probes the version first), so a
+ * keypad mapper that asks for the module, custom module and every profile should not pay for it
+ * each time. [observe] refreshes the snapshot before forwarding the change.
+ */
+class CachingSidekitConfigSource(private val source: SidekitConfigSource) : SidekitConfigSource {
+    private val lock = Any()
+    private var cached: SidekitConfig? = null
+    private var loaded = false
+
+    override fun read(): SidekitConfig? = synchronized(lock) {
+        if (!loaded) {
+            cached = source.read()
+            loaded = true
+        }
+        cached
+    }
+
+    override fun observe(onChange: (SidekitConfig?) -> Unit): () -> Unit = source.observe { config ->
+        synchronized(lock) {
+            cached = config
+            loaded = true
+        }
+        onChange(config)
+    }
 }

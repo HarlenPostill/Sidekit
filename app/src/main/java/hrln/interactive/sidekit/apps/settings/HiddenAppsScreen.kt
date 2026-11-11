@@ -15,7 +15,7 @@ import hrln.interactive.sidekit.design.action.SideAction
 import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.launcher.NativeApp
-import hrln.interactive.sidekit.launcher.NativeApps
+import hrln.interactive.sidekit.launcher.rememberNativeApps
 import hrln.interactive.sidekit.navigation.SubApp
 
 internal fun SubApp.visibilityId() = "builtin:$name"
@@ -38,7 +38,7 @@ internal fun HiddenAppsScreen(back: () -> Unit) {
     val prefs = remember(context) { SidekitPreferences(context) }
     val hidden = rememberHiddenApps(prefs)
     val ported by remember { PortedApps.get(context).apps }.collectAsStateWithLifecycle()
-    val native = remember(context) { NativeApps.discover(context) }
+    val native = rememberNativeApps()
     SidekitScaffold("Hide apps", actions = listOf(SideAction.back("back", "Settings", back))) { padding ->
         SidekitList(padding) { hiddenAppChoices(hidden, ported, native) { prefs.hiddenApps = it } }
     }

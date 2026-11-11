@@ -1,6 +1,7 @@
 package hrln.interactive.sidekit.sdk.config
 
 import android.os.Bundle
+import androidx.annotation.RestrictTo
 import hrln.interactive.sidekit.design.input.PhysicalKey
 import hrln.interactive.sidekit.design.input.T9Mode
 import hrln.interactive.sidekit.sdk.SidekitContract
@@ -12,6 +13,7 @@ import hrln.interactive.sidekit.sdk.SidekitContract
  * [SidekitContract.SCHEMA_VERSION]. Both the host provider and [SidekitConfigClient] use it so a
  * malformed or partial response is rejected in one place.
  */
+@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 object SidekitConfigCodec {
     const val KEY_SCHEMA = "schema"
     const val KEY_HOST_VERSION = "hostVersion"

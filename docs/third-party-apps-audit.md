@@ -48,40 +48,30 @@ SDK-built apps can read the theme and keypad setup.
       `build/local-repo`, and the `Published SDK consumer` CI job builds `:sample-app` with
       `-PsidekitUsePublished=true` against `hrln.interactive.sidekit:sidekit-sdk:<version>`.
       Publishing to the real host (GitHub Packages) is still pending.
-- [ ] **Add the Settings/About disclosure.** State that apps built with the Sidekit SDK can read
-      the case colour and keypad setup.
-- [ ] **Add a separate-APK acceptance test.** The current tests are Robolectric/in-process. Add an
-      instrumentation test or a second sample app that calls `SidekitConfigClient.status/read/observe`
-      from another package.
-- [ ] **Verify `MIN_SCHEMA` metadata type.** The sample uses `android:value="1"`; `Bundle.getInt`
-      on a string-typed value can return `0`. The test fixture uses `putInt`, so it will not catch
-      this. Document the expected type and verify on device.
+- [x] **Add the Settings/About disclosure.** About now says that SDK-built apps can read the case
+      colour and keypad setup, and names what stays private.
+- [x] **Add a separate-APK acceptance test.** `:sample-app` is a separate APK and now has an
+      instrumentation test that calls `SidekitConfigClient.status/read` from its own package.
+- [x] **Verify `MIN_SCHEMA` metadata type.** `NativeApps` accepts both the manifest's string value
+      and an Int bundle value, and a test covers the string form.
 
 ### Performance and API ergonomics
 
-- [ ] **Cache host configuration.** `HostKeypadPreferences` calls `source.read()` per getter, and
-      each `read()` probes `getVersion` and then calls `getConfig`. `KeyMapper.load()` can trigger
-      ~10 binder calls. Cache the snapshot per `notifyChange`.
-- [ ] **Filter provider notifications.** `SidekitConfigProvider.kt:39` notifies on every
-      `sidekit_settings`/`sidekit_keypad` change, including hidden apps, setup step, and list
-      layout. Notify only for keys in the contract.
-- [ ] **Move `NativeApps.discover()` off the main thread.** It runs inside Compose `remember` in
-      `LauncherRoute`, `ArrangeHomeScreen`, `HiddenAppsScreen`, and `OnboardingScreen`. Use a
-      coroutine/IO and cache the result.
-- [ ] **Add a host-or-local store factory.** `SidekitActivity` defaults to local stores
-      (`SidekitActivity.kt:36-38`), so a consumer that forgets to override silently ignores the
-      host. Add `SidekitStores.forHostOrLocal(context, intent)` and use it in the sample.
-- [ ] **Make `:sample-app` a real consumer.** It currently renders a text and a schema constant.
-      It should use `SidekitActivity`, call `SidekitConfigClient.status()`, read the host theme,
-      and show a local fallback when Sidekit is absent.
-- [ ] **Validate `EXTRA_HOST_AUTHORITY`.** A malicious app can launch a native app with a fake
-      authority pointing at its own provider. Validate against known packages or verify the
-      provider signature.
-- [ ] **Decide on explicit-authority fallback.** If a dev Sidekit launched the app and is later
-      uninstalled, `status(context, devAuthority)` returns `NotInstalled` even when stable Sidekit
-      is installed. Fall back to stable or document the behavior.
-- [ ] **Enforce capabilities.** `status()` returns `Available` for any compatible schema, even if
-      `capabilities` is empty. Add `hasCapability()` and use it before reading theme/keypad.
+- [x] **Cache host configuration.** `CachingSidekitConfigSource` keeps one snapshot until the
+      host notifies; `HostKeypadPreferences` and `HostSidekitThemeStore` use it.
+- [x] **Filter provider notifications.** The provider only notifies for contract keys; hidden
+      apps, setup step, list layout and the legacy T9 flag no longer wake clients.
+- [x] **Move `NativeApps.discover()` off the main thread.** `rememberNativeApps` queries on
+      `Dispatchers.IO`, caches the result, and refreshes on launcher resume.
+- [x] **Add a host-or-local store factory.** `SidekitStores.forHostOrLocal(context, intent)` is
+      used by `SidekitActivity`, so a consumer gets host-backed stores by default.
+- [x] **Make `:sample-app` a real consumer.** It now extends `SidekitActivity`, calls
+      `SidekitConfigClient.status/read`, reads the host theme, and falls back to local settings.
+- [x] **Validate `EXTRA_HOST_AUTHORITY`.** The client only accepts known Sidekit authorities and
+      rejects a provider whose package does not own the authority.
+- [x] **Decide on explicit-authority fallback.** A missing or unsupported dev host falls back to
+      the other known Sidekit builds; an unknown authority is rejected.
+- [x] **Enforce capabilities.** `SidekitConfig.hasCapability()` gates theme and keypad reads.
 - [ ] **Add a real permission-denial test.** The current test overrides `callerCanRead()`; add an
       instrumentation test with a second package/UID to exercise the real
       `checkCallingPermission` boundary.
@@ -92,9 +82,8 @@ SDK-built apps can read the theme and keypad setup.
       stores, shell, keypad settings UI, crypto, media, system utilities, and `UndoWindow`.
       Consider splitting contract/stores/shell from app-level utilities, or marking utilities
       `internal` where possible.
-- [ ] **Hide implementation details.** `SidekitPreferenceFiles` and `SidekitConfigCodec` are
-      public but are not intended as stable API. Consider `@RestrictTo` or a separate internal
-      artifact.
+- [x] **Hide implementation details.** `SidekitPreferenceFiles` and `SidekitConfigCodec` are
+      marked `@RestrictTo(LIBRARY_GROUP)`; a separate internal artifact is still an option.
 
 ## Accepted for v1
 
@@ -105,10 +94,11 @@ SDK-built apps can read the theme and keypad setup.
 
 ## Verification performed
 
-- `:sidekit-sdk:compileDebugKotlin` and `:app:compileDebugKotlin` pass.
-- Targeted unit tests for config, launcher, and home pass.
+- `:sidekit-sdk:compileDebugKotlin`, `:app:compileDebugKotlin` and `:sample-app:compileDebugKotlin` pass.
+- Full unit suites for `:app`, `:sidekit-sdk` and `:sidekit` pass.
+- `:sample-app:compileDebugAndroidTestKotlin` passes; the separate-APK client test is ready for a device.
 - `spotlessCheck` passes.
-- `:app:lintDebug` and `:sidekit-sdk:lintDebug` pass.
+- `:app:lintDebug`, `:sidekit-sdk:lintDebug` and `:sample-app:lintDebug` pass.
 - `:sidekit` and `:sidekit-sdk` publish to `build/local-repo`, and `:sample-app:assembleDebug
   -PsidekitUsePublished=true` resolves the published `sidekit-sdk` plus its transitive
   `sidekit-design` dependency.

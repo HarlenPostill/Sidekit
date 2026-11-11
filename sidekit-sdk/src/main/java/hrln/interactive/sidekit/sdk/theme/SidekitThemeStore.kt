@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import hrln.interactive.sidekit.design.theme.CaseColour
+import hrln.interactive.sidekit.sdk.SidekitContract
+import hrln.interactive.sidekit.sdk.config.CachingSidekitConfigSource
 import hrln.interactive.sidekit.sdk.config.SidekitConfig
 import hrln.interactive.sidekit.sdk.config.SidekitConfigSource
 import hrln.interactive.sidekit.sdk.config.SidekitPreferenceFiles
@@ -79,15 +81,20 @@ class SharedPreferencesSidekitThemeStore(
  * There is no write path: Sidekit owns its settings. When the host has not completed setup the
  * snapshot's defaults (original blue, comfortable layout) apply.
  */
-class HostSidekitThemeStore(private val source: SidekitConfigSource) : SidekitThemeStore {
+class HostSidekitThemeStore(source: SidekitConfigSource) : SidekitThemeStore {
+    private val source = CachingSidekitConfigSource(source)
+
     override fun read(): SidekitThemeConfig = from(source.read())
 
     override fun observe(onChange: (SidekitThemeConfig) -> Unit): () -> Unit = source.observe { onChange(from(it)) }
 
-    private fun from(config: SidekitConfig?): SidekitThemeConfig = SidekitThemeConfig(
-        caseColour = config?.caseColourOrDefault(),
-        compact = config?.compactLayout ?: false
-    )
+    private fun from(config: SidekitConfig?): SidekitThemeConfig {
+        val theme = config?.takeIf { it.hasCapability(SidekitContract.CAPABILITY_THEME) }
+        return SidekitThemeConfig(
+            caseColour = theme?.caseColourOrDefault(),
+            compact = theme?.compactLayout ?: false
+        )
+    }
 }
 
 /**

@@ -21,6 +21,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = sidekitVersionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     compileOptions {
@@ -46,4 +47,6 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.activity.compose)
+
+    androidTestImplementation(libs.androidx.junit)
 }

@@ -1,6 +1,6 @@
 # Third-party apps and shared user configuration
 
-**Status:** In progress — tasks 1–5 implemented; local publishing validation added; GitHub Packages publication next
+**Status:** In progress — tasks 1–5 implemented; local publishing validation, host-store factory, capability checks and About disclosure added; GitHub Packages publication next
 **Date:** 11 November 2026
 **Branch:** `feat/third-party-apps`
 
@@ -63,6 +63,11 @@ Checked items are already in this branch. Unchecked items follow the recommended
   probing and the host-authority intent extra.
 - [x] Add round-trip, permission-denial, dev-authority and `notifyChange` tests.
 - [x] Add a lint or test guard that the provider is exported only with the read permission.
+- [x] Notify observers only for keys in the contract, not for hidden apps, setup step or layout.
+- [x] Validate the launcher's `EXTRA_HOST_AUTHORITY` against known Sidekit packages.
+- [x] Fall back to the other known Sidekit build when an explicit dev host disappears.
+- [x] Add `SidekitConfig.hasCapability()` and gate theme/keypad reads on it.
+- [x] Cache the host snapshot until `notifyChange` instead of re-reading per getter.
 
 ### 5. Native third-party launcher entries
 
@@ -71,6 +76,8 @@ Checked items are already in this branch. Unchecked items follow the recommended
 - [x] Update `LauncherRoute`, `LauncherScreen`, `HomePreferences`, `HomeArranger`,
   `ArrangeHomeScreen`, `HiddenAppsScreen` and search for native app ids.
 - [x] Launch native apps with an explicit intent and `EXTRA_HOST_AUTHORITY`.
+- [x] Read `MIN_SCHEMA` as either the manifest string or an Int bundle value.
+- [x] Discover native apps off the main thread and cache the result.
 - [ ] Remove `SubApp.Sideplay` and the embedded `apps/spotify` graph once Sideplay ships
   standalone. Neither is present on this branch.
 
@@ -85,7 +92,11 @@ Checked items are already in this branch. Unchecked items follow the recommended
 ### Cross-cutting
 
 - [x] Add the new modules and publishing conventions to CI and `docs/ci.md`.
-- [ ] Add the Settings/About disclosure that SDK-built apps can read theme and keypad setup.
+- [x] Add the Settings/About disclosure that SDK-built apps can read theme and keypad setup.
+- [x] Add `SidekitStores.forHostOrLocal(context, intent)` and use it in `SidekitActivity`.
+- [x] Make `:sample-app` use `SidekitActivity` and read the host configuration.
+- [x] Add a separate-APK acceptance test in `:sample-app` that calls the client from its own package.
+- [ ] Add a real permission-denial instrumentation test with a second package/UID.
 
 Paths in the tables and checklist are relative to the module source root:
 `app/src/main/java/hrln/interactive/sidekit/` for `:app` and
@@ -174,7 +185,9 @@ Add a read-only, exported `ContentProvider` in `:app`.
 - Do not implement `insert`, `update`, `delete`, `openFile`, or `bulkInsert`. There is no
   write path in v1.
 - The provider registers `OnSharedPreferenceChangeListener` for `sidekit_settings` and
-  `sidekit_keypad`, then calls `notifyChange` so clients receive live updates.
+  `sidekit_keypad`, then calls `notifyChange` so clients receive live updates. It only
+  notifies for keys in the contract; hidden apps, setup step, list layout and the legacy
+  T9 flag stay private.
 
 ### 3.2 Contract
 
@@ -215,7 +228,9 @@ object SidekitConfigClient {
 - Probe stable then dev authorities with `call("getVersion")`. Catch
   `IllegalArgumentException`, `SecurityException`, and missing-provider errors.
 - Prefer the authority of the Sidekit build that launched the app when the host passes
-  it as an intent extra. Otherwise prefer stable, then dev.
+  it as an intent extra. Only known Sidekit authorities are accepted, and the provider's
+  package must own the authority. If the explicit dev host has gone away, fall back to
+  the other known build. Otherwise prefer stable, then dev.
 - The SDK AAR should merge `<queries>` for `hrln.interactive.sidekit` and
   `hrln.interactive.sidekit.dev` so Android 11 package visibility does not break
   discovery.
@@ -273,7 +288,11 @@ interface KeypadPreferences {
 - `SharedPreferencesKeypadPreferences` reproduces today's behaviour for Sidekit and for
   Sideplay when Sidekit is absent.
 - `HostKeypadPreferences` reads from `SidekitConfigClient` and drops writes, so Sideplay
-  never mutates Sidekit's configuration while Sidekit is installed.
+  never mutates Sidekit's configuration while Sidekit is installed. It caches the host
+  snapshot until `notifyChange`, so a mapper load does not make a binder call per getter.
+- `SidekitStores.forHostOrLocal(context, intent)` picks host-backed or local stores in one
+  place. `SidekitActivity` uses it by default, so a consumer that forgets to override still
+  follows the host.
 - Extract the `onResume` input-mode application (`SidekitPreferences.applyInputDefault`,
   called from `MainActivity.kt:74-77`) into an SDK helper used by both hosts.
 - Move the keypad settings UI (`apps/settings/KeypadMappingScreen.kt`, including capture
@@ -362,7 +381,8 @@ A native app advertises its launcher entry activity:
 ```
 
 The launcher shows at most one tile per package, with id `native:<package>` and the label and
-icon from `PackageManager`. A descriptor whose `MIN_SCHEMA` is newer than the host's schema is
+icon from `PackageManager`. `MIN_SCHEMA` may be written as the manifest string (`android:value="1"`) or as an Int
+bundle value; the launcher accepts both. A descriptor whose `MIN_SCHEMA` is newer than the host's schema is
 ignored. Launching uses an explicit intent to the advertised activity plus
 `EXTRA_HOST_AUTHORITY`, so the app reads the configuration of the Sidekit build that launched
 it, and `EXTRA_LAUNCH_ROUTE` when the descriptor declares a route. The descriptor only controls

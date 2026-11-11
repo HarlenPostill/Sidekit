@@ -26,8 +26,9 @@ class NativeAppsTest {
         activityName: String = "$packageName.MainActivity",
         appId: String? = null,
         minSchema: Int? = null,
+        minSchemaString: String? = null,
         launchRoute: String? = null
-    ) = addNativeAppForTest(context, packageName, label, activityName, appId, minSchema, launchRoute)
+    ) = addNativeAppForTest(context, packageName, label, activityName, appId, minSchema, minSchemaString, launchRoute)
 
     @Test
     fun `discovers native apps with their contract metadata sorted by label`() {
@@ -50,6 +51,17 @@ class NativeAppsTest {
         addNativeApp("test.current", "Current", minSchema = SidekitContract.SCHEMA_VERSION)
 
         assertEquals(listOf("test.current"), NativeApps.discover(context).map { it.packageName })
+    }
+
+    @Test
+    fun `reads a string MIN_SCHEMA from the manifest`() {
+        addNativeApp("test.string", "String", minSchemaString = "1")
+        addNativeApp("test.future", "Future", minSchemaString = (SidekitContract.SCHEMA_VERSION + 1).toString())
+
+        val apps = NativeApps.discover(context)
+
+        assertEquals(listOf("test.string"), apps.map { it.packageName })
+        assertEquals(1, apps.single().minSchema)
     }
 
     @Test

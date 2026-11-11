@@ -14,9 +14,8 @@ import androidx.lifecycle.lifecycleScope
 import hrln.interactive.sidekit.design.action.ChromeState
 import hrln.interactive.sidekit.design.input.Keypad
 import hrln.interactive.sidekit.design.input.KeypadPreferences
-import hrln.interactive.sidekit.sdk.input.SharedPreferencesKeypadPreferences
+import hrln.interactive.sidekit.sdk.SidekitStores
 import hrln.interactive.sidekit.sdk.input.SidekitInputController
-import hrln.interactive.sidekit.sdk.theme.SharedPreferencesSidekitThemeStore
 import hrln.interactive.sidekit.sdk.theme.SidekitThemeStore
 
 /**
@@ -26,16 +25,22 @@ import hrln.interactive.sidekit.sdk.theme.SidekitThemeStore
  * A host keeps its app-specific handling (HOME intents, links, services) in its subclass, which
  * only has to render [SidekitContent].
  *
- * Subclasses can override [themeStore] and [keypadPreferences] to use host-backed, read-only
- * stores instead of the local Sidekit files.
+ * [stores] is host-backed when a compatible Sidekit is installed and local otherwise. Subclasses
+ * can override [stores], [themeStore] or [keypadPreferences] to supply their own.
  */
 abstract class SidekitActivity : ComponentActivity() {
     /** The shared title + action bar; held here so hardware keys (Options) can reach it. */
     protected val chrome = ChromeState()
 
-    protected open val themeStore: SidekitThemeStore by lazy { SharedPreferencesSidekitThemeStore(this) }
+    /**
+     * Host-backed when a compatible Sidekit is installed, local otherwise. The launch intent is
+     * read here so a dev Sidekit that started the app stays the host.
+     */
+    protected open val stores: SidekitStores.Stores by lazy { SidekitStores.forHostOrLocal(this, intent) }
 
-    protected open val keypadPreferences: KeypadPreferences by lazy { SharedPreferencesKeypadPreferences(this) }
+    protected open val themeStore: SidekitThemeStore get() = stores.theme
+
+    protected open val keypadPreferences: KeypadPreferences get() = stores.keypad
 
     /** The swappable keypad. T9 typing and its dictionary only load once T9 is actually used. */
     protected val keypad: Keypad by lazy { Keypad.create(this, lifecycleScope, keypadPreferences) }

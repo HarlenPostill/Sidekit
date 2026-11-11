@@ -18,6 +18,7 @@ internal fun addNativeAppForTest(
     activityName: String = "$packageName.MainActivity",
     appId: String? = null,
     minSchema: Int? = null,
+    minSchemaString: String? = null,
     launchRoute: String? = null
 ) {
     val pkg = packageName
@@ -34,6 +35,7 @@ internal fun addNativeAppForTest(
             metaData = Bundle().apply {
                 appId?.let { putString(SidekitContract.META_DATA_APP_ID, it) }
                 minSchema?.let { putInt(SidekitContract.META_DATA_MIN_SCHEMA, it) }
+                minSchemaString?.let { putString(SidekitContract.META_DATA_MIN_SCHEMA, it) }
                 launchRoute?.let { putString(SidekitContract.META_DATA_LAUNCH_ROUTE, it) }
             }
         }

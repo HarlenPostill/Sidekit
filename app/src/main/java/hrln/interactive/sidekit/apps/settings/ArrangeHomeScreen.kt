@@ -33,7 +33,7 @@ import hrln.interactive.sidekit.design.icons.SidekitIcon
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.home.HomeArranger
 import hrln.interactive.sidekit.home.HomePreferences
-import hrln.interactive.sidekit.launcher.NativeApps
+import hrln.interactive.sidekit.launcher.rememberNativeApps
 import hrln.interactive.sidekit.navigation.SubApp
 
 /**
@@ -53,7 +53,7 @@ internal fun ArrangeHomeScreen(back: () -> Unit) {
     val prefs = remember(context) { SidekitPreferences(context) }
     val hidden = rememberHiddenApps(prefs)
     val ported by remember { PortedApps.get(context).apps }.collectAsStateWithLifecycle()
-    val native = remember(context) { NativeApps.discover(context) }
+    val native = rememberNativeApps()
     val subsById = remember(SubApp.entries) { SubApp.entries.associateBy { it.visibilityId() } }
     val portedById = remember(ported) { ported.associateBy { it.visibilityId() } }
     val nativeById = remember(native) { native.associateBy { it.visibilityId } }

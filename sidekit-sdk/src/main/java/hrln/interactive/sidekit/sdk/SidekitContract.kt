@@ -14,10 +14,12 @@ object SidekitContract {
     const val PERMISSION_READ_APP_CONFIG = "hrln.interactive.sidekit.permission.READ_APP_CONFIG"
 
     /** Stable Sidekit build. */
-    const val AUTHORITY_STABLE = "hrln.interactive.sidekit.config"
+    const val PACKAGE_STABLE = "hrln.interactive.sidekit"
+    const val AUTHORITY_STABLE = "$PACKAGE_STABLE.config"
 
     /** Sidekit dev build (`hrln.interactive.sidekit.dev`). */
-    const val AUTHORITY_DEV = "hrln.interactive.sidekit.dev.config"
+    const val PACKAGE_DEV = "hrln.interactive.sidekit.dev"
+    const val AUTHORITY_DEV = "$PACKAGE_DEV.config"
 
     /** Authorities probed by the configuration client, stable first. */
     val AUTHORITIES: List<String> = listOf(AUTHORITY_STABLE, AUTHORITY_DEV)
@@ -43,6 +45,20 @@ object SidekitContract {
      * The stable build resolves to [AUTHORITY_STABLE] and the dev build to [AUTHORITY_DEV].
      */
     fun authorityForPackage(packageName: String): String = "$packageName.$PATH_CONFIG"
+
+    /**
+     * The package that owns [authority], or null for an authority this contract does not know.
+     *
+     * The client uses this to reject a launch extra that points at another app's provider.
+     */
+    fun packageForAuthority(authority: String): String? = when (authority) {
+        AUTHORITY_STABLE -> PACKAGE_STABLE
+        AUTHORITY_DEV -> PACKAGE_DEV
+        else -> null
+    }
+
+    /** Whether [authority] belongs to a Sidekit build this contract knows. */
+    fun isKnownAuthority(authority: String): Boolean = packageForAuthority(authority) != null
 
     /** Optional intent extra naming the host authority that launched the app. */
     const val EXTRA_HOST_AUTHORITY = "hrln.interactive.sidekit.extra.HOST_AUTHORITY"

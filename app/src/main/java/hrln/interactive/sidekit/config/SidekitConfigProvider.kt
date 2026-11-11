@@ -1,5 +1,6 @@
 package hrln.interactive.sidekit.config
 
+import android.annotation.SuppressLint
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.content.Context
@@ -27,6 +28,9 @@ import hrln.interactive.sidekit.sdk.input.SharedPreferencesKeypadPreferences
  * Only the keys listed in [SidekitConfigCodec] leave the process. Hidden apps, home order,
  * credentials, messages and the other app-private stores are never read here.
  */
+// The provider is the host side of the SDK's internal wire format; the codec and file names are
+// restricted so third-party apps cannot depend on them.
+@SuppressLint("RestrictedApi")
 open class SidekitConfigProvider : ContentProvider() {
     private var appContext: Context? = null
 
@@ -36,7 +40,9 @@ open class SidekitConfigProvider : ContentProvider() {
     override fun onCreate(): Boolean {
         val app = context?.applicationContext ?: return false
         appContext = app
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> notifyConfigChanged(app) }
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (isContractKey(key)) notifyConfigChanged(app)
+        }
         settingsFile(app).registerOnSharedPreferenceChangeListener(listener)
         keypadFile(app).registerOnSharedPreferenceChangeListener(listener)
         listeners += listener
@@ -94,6 +100,15 @@ open class SidekitConfigProvider : ContentProvider() {
         context.contentResolver.notifyChange(configUri(context), null)
     }
 
+    /**
+     * Only the keys that feed the contract wake observers. Hidden apps, setup step, list layout
+     * and the legacy T9 flag stay private and must not cause a client re-read.
+     */
+    private fun isContractKey(key: String?): Boolean = key == null ||
+        key in CONTRACT_SETTINGS_KEYS ||
+        key in CONTRACT_KEYPAD_KEYS ||
+        key.startsWith(CONTRACT_PROFILE_PREFIX)
+
     override fun query(
         uri: Uri,
         projection: Array<out String>?,
@@ -121,5 +136,11 @@ open class SidekitConfigProvider : ContentProvider() {
     private fun configUri(context: Context): Uri {
         val authority = SidekitContract.authorityForPackage(context.packageName)
         return Uri.parse("content://$authority/${SidekitContract.PATH_CONFIG}")
+    }
+
+    private companion object {
+        val CONTRACT_SETTINGS_KEYS = setOf("setup_complete", "case_colour", "compact_layout", "input_mode")
+        val CONTRACT_KEYPAD_KEYS = setOf("module", "custom_module")
+        const val CONTRACT_PROFILE_PREFIX = "profile."
     }
 }

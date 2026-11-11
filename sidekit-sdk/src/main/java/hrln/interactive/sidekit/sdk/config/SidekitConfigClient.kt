@@ -39,15 +39,19 @@ object SidekitConfigClient {
      */
     fun authorityFrom(intent: Intent?): String? = intent
         ?.getStringExtra(SidekitContract.EXTRA_HOST_AUTHORITY)
-        ?.takeIf { it.isNotBlank() }
+        ?.takeIf { it.isNotBlank() && SidekitContract.isKnownAuthority(it) }
 
     /**
      * Probes the Sidekit host.
      *
      * Without [hostAuthority] the stable build is preferred, then the dev build. With an explicit
-     * authority only that build is probed, so a launcher can keep a dev session on the dev host.
+     * known authority that build is preferred, so a launcher can keep a dev session on the dev
+     * host; if it has gone away, the other known builds are tried before reporting no host.
      */
     fun status(context: Context, hostAuthority: String? = null): HostStatus = resolve(context, hostAuthority).status
+
+    /** The authority of the compatible host that [status] would use, or null. */
+    fun hostAuthority(context: Context, hostAuthority: String? = null): String? = resolve(context, hostAuthority).authority
 
     /** Reads the host configuration, or null when no compatible host is available. */
     fun read(context: Context, hostAuthority: String? = null): SidekitConfig? {
@@ -89,10 +93,18 @@ object SidekitConfigClient {
     private data class Resolved(val authority: String?, val status: HostStatus)
 
     private fun resolve(context: Context, hostAuthority: String?): Resolved {
-        if (hostAuthority != null) return Resolved(hostAuthority, probe(context, hostAuthority))
-
         var installed = false
+        if (hostAuthority != null) {
+            val status = probe(context, hostAuthority)
+            if (status == HostStatus.Available) return Resolved(hostAuthority, status)
+            // A dev build can be uninstalled while the app is still running. Fall back to the
+            // other known Sidekit builds, but never to an authority this contract does not know.
+            if (!SidekitContract.isKnownAuthority(hostAuthority)) return Resolved(null, status)
+            if (status == HostStatus.InstalledUnsupported) installed = true
+        }
+
         for (authority in SidekitContract.AUTHORITIES) {
+            if (authority == hostAuthority) continue
             val status = probe(context, authority)
             if (status == HostStatus.Available) return Resolved(authority, status)
             if (status == HostStatus.InstalledUnsupported) installed = true
@@ -101,7 +113,9 @@ object SidekitConfigClient {
     }
 
     private fun probe(context: Context, authority: String): HostStatus {
-        if (!providerExists(context, authority)) return HostStatus.NotInstalled
+        val provider = providerInfo(context, authority) ?: return HostStatus.NotInstalled
+        val expectedPackage = SidekitContract.packageForAuthority(authority)
+        if (expectedPackage != null && provider.packageName != expectedPackage) return HostStatus.NotInstalled
         val version = try {
             context.contentResolver.call(configUri(authority), SidekitContract.METHOD_GET_VERSION, null, null)
         } catch (e: SecurityException) {
@@ -117,10 +131,10 @@ object SidekitConfigClient {
         return if (config.isCompatible()) HostStatus.Available else HostStatus.InstalledUnsupported
     }
 
-    private fun providerExists(context: Context, authority: String): Boolean = try {
-        context.packageManager.resolveContentProvider(authority, 0) != null
+    private fun providerInfo(context: Context, authority: String): android.content.pm.ProviderInfo? = try {
+        context.packageManager.resolveContentProvider(authority, 0)
     } catch (e: RuntimeException) {
-        false
+        null
     }
 
     private fun readFrom(context: Context, authority: String): SidekitConfig? {

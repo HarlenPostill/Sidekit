@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.os.Build
+import android.os.Bundle
 import hrln.interactive.sidekit.sdk.SidekitContract
 
 /**
@@ -43,6 +44,9 @@ data class NativeApp(
 
 /** Discovers the native apps installed alongside this Sidekit build. */
 object NativeApps {
+    @Volatile
+    private var cached: List<NativeApp>? = null
+
     /**
      * Every installed app advertising [SidekitContract.ACTION_NATIVE_APP] that this Sidekit
      * understands, sorted by label. One entry per package: the first advertised activity wins.
@@ -59,13 +63,27 @@ object NativeApps {
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
     }
 
+    /**
+     * The last [discover] result, or a fresh one. Call [invalidate] when the app list may have
+     * changed (for example on resume) so the next caller re-queries the package manager.
+     */
+    fun cached(context: Context): List<NativeApp> = cached ?: discover(context).also { cached = it }
+
+    /** The cached list, or null when nothing has been discovered yet. */
+    fun cachedOrNull(): List<NativeApp>? = cached
+
+    /** Drops the cached app list; the next [cached] call re-queries the package manager. */
+    fun invalidate() {
+        cached = null
+    }
+
     private fun toNativeApp(context: Context, resolved: ResolveInfo): NativeApp? {
         val activity = resolved.activityInfo ?: return null
         val packageName = activity.packageName ?: return null
         val activityName = activity.name ?: return null
         if (packageName == context.packageName || !activity.enabled) return null
 
-        val minSchema = activity.metaData?.getInt(SidekitContract.META_DATA_MIN_SCHEMA, 0) ?: 0
+        val minSchema = activity.metaData?.minSchema() ?: 0
         if (minSchema > SidekitContract.SCHEMA_VERSION) return null
 
         val label = runCatching { activity.loadLabel(context.packageManager).toString() }
@@ -80,6 +98,16 @@ object NativeApps {
             minSchema = minSchema,
             launchRoute = activity.metaData?.getString(SidekitContract.META_DATA_LAUNCH_ROUTE)?.takeIf { it.isNotBlank() }
         )
+    }
+
+    /**
+     * `android:value` is a string in the manifest, but a test or a future host may put an Int in
+     * the bundle. Accept both; an unreadable value means "no minimum".
+     */
+    private fun Bundle.minSchema(): Int = when (val value = get(SidekitContract.META_DATA_MIN_SCHEMA)) {
+        is Int -> value
+        is String -> value.toIntOrNull() ?: 0
+        else -> 0
     }
 
     private fun PackageManager.queryIntentActivities(intent: Intent): List<ResolveInfo> = runCatching {
