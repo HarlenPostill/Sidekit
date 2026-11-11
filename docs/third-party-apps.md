@@ -1,6 +1,6 @@
 # Third-party apps and shared user configuration
 
-**Status:** In progress — tasks 1–5 implemented; local publishing validation, host-store factory, capability checks and About disclosure added; GitHub Packages publication next
+**Status:** In progress — tasks 1–5 implemented; local publishing validation, host-store factory, capability checks, About disclosure and the cross-UID permission test added; GitHub Packages publication next
 **Date:** 11 November 2026
 **Branch:** `feat/third-party-apps`
 
@@ -96,7 +96,8 @@ Checked items are already in this branch. Unchecked items follow the recommended
 - [x] Add `SidekitStores.forHostOrLocal(context, intent)` and use it in `SidekitActivity`.
 - [x] Make `:sample-app` use `SidekitActivity` and read the host configuration.
 - [x] Add a separate-APK acceptance test in `:sample-app` that calls the client from its own package.
-- [ ] Add a real permission-denial instrumentation test with a second package/UID.
+- [x] Add a real permission-denial instrumentation test with a second package/UID
+  (`:permission-test-app`).
 
 Paths in the tables and checklist are relative to the module source root:
 `app/src/main/java/hrln/interactive/sidekit/` for `:app` and
@@ -151,6 +152,8 @@ Recommended module split:
 - **`:app`** — the launcher and the exported configuration provider.
 - **`:sample-app`** (recommended) — a CI consumer that builds against the published
   artifacts and reads configuration the way Sideplay will.
+- **`:permission-test-app`** — a separate APK without the SDK dependency, used only to
+  exercise the real cross-UID permission boundary.
 
 Publish as `hrln.interactive.sidekit:sidekit-design` and
 `hrln.interactive.sidekit:sidekit-sdk`, versioned from git tags.

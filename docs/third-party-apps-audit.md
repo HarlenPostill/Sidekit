@@ -34,10 +34,10 @@ SDK-built apps can read the theme and keypad setup.
 
 - [x] **Keep the branch based on `upstream/main`.** The branch is 5 commits ahead of
       `3debe06` and 0 behind. Rebase onto `upstream/main` again before opening the PR.
-- [ ] **Drop formatter-only churn.** Unrelated files such as `VideoScreens.kt`,
-      `OnboardingScreen.kt`, `SettingsViewModel.kt`, `BankingRepository.kt`, `MusicScreens.kt`,
-      `PhotosScreens.kt`, and `ArrangeHomeScreen.kt` contain trailing-comma/line-wrap changes that
-      inflate the diff and cause conflicts.
+- [x] **Drop formatter-only churn.** Formatter-only files were reverted to `upstream/main` and
+      only semantic SDK-extraction edits were re-applied. The remaining diffs in files such as
+      `VideoScreens.kt`, `OnboardingScreen.kt`, `SettingsViewModel.kt`, `BankingRepository.kt`,
+      `MusicScreens.kt`, `PhotosScreens.kt`, and `ArrangeHomeScreen.kt` are the actual SDK moves.
 
 ### Correctness and completeness
 
@@ -72,16 +72,18 @@ SDK-built apps can read the theme and keypad setup.
 - [x] **Decide on explicit-authority fallback.** A missing or unsupported dev host falls back to
       the other known Sidekit builds; an unknown authority is rejected.
 - [x] **Enforce capabilities.** `SidekitConfig.hasCapability()` gates theme and keypad reads.
-- [ ] **Add a real permission-denial test.** The current test overrides `callerCanRead()`; add an
-      instrumentation test with a second package/UID to exercise the real
-      `checkCallingPermission` boundary.
+- [x] **Add a real permission-denial test.** `:permission-test-app` is a separate APK that
+      deliberately does not depend on `:sidekit-sdk` (whose manifest declares the read
+      permission). Its instrumentation test resolves the provider and asserts that `call` throws
+      `SecurityException` for both the stable and dev authorities.
 
 ### API surface cleanup
 
-- [ ] **Review the `:sidekit-sdk` public surface.** It currently includes the contract, client,
-      stores, shell, keypad settings UI, crypto, media, system utilities, and `UndoWindow`.
-      Consider splitting contract/stores/shell from app-level utilities, or marking utilities
-      `internal` where possible.
+- [x] **Review the `:sidekit-sdk` public surface.** The contract, client, stores, shell, keypad
+      settings UI, crypto, media, system utilities, and `UndoWindow` are intentionally available
+      to SDK apps. The wire format and preference-file names are `@RestrictTo(LIBRARY_GROUP)`, and
+      `CachingSidekitConfigSource` is `internal`. A separate internal artifact remains an option
+      if the utility surface grows.
 - [x] **Hide implementation details.** `SidekitPreferenceFiles` and `SidekitConfigCodec` are
       marked `@RestrictTo(LIBRARY_GROUP)`; a separate internal artifact is still an option.
 
@@ -96,9 +98,11 @@ SDK-built apps can read the theme and keypad setup.
 
 - `:sidekit-sdk:compileDebugKotlin`, `:app:compileDebugKotlin` and `:sample-app:compileDebugKotlin` pass.
 - Full unit suites for `:app`, `:sidekit-sdk` and `:sidekit` pass.
-- `:sample-app:compileDebugAndroidTestKotlin` passes; the separate-APK client test is ready for a device.
+- `:sample-app:compileDebugAndroidTestKotlin` and `:permission-test-app:assembleDebugAndroidTest`
+  pass; both separate-APK tests are ready for a device.
 - `spotlessCheck` passes.
-- `:app:lintDebug`, `:sidekit-sdk:lintDebug` and `:sample-app:lintDebug` pass.
+- `:app:lintDebug`, `:sidekit-sdk:lintDebug`, `:sample-app:lintDebug` and
+  `:permission-test-app:lintDebug` pass.
 - `:sidekit` and `:sidekit-sdk` publish to `build/local-repo`, and `:sample-app:assembleDebug
   -PsidekitUsePublished=true` resolves the published `sidekit-sdk` plus its transitive
   `sidekit-design` dependency.

@@ -68,7 +68,7 @@ class StaticSidekitConfigSource(private val config: SidekitConfig?) : SidekitCon
  * keypad mapper that asks for the module, custom module and every profile should not pay for it
  * each time. [observe] refreshes the snapshot before forwarding the change.
  */
-class CachingSidekitConfigSource(private val source: SidekitConfigSource) : SidekitConfigSource {
+internal class CachingSidekitConfigSource(private val source: SidekitConfigSource) : SidekitConfigSource {
     private val lock = Any()
     private var cached: SidekitConfig? = null
     private var loaded = false
