@@ -7,6 +7,7 @@ import hrln.interactive.sidekit.design.input.KeypadPreferences
 import hrln.interactive.sidekit.design.input.PhysicalKey
 import hrln.interactive.sidekit.sdk.config.SidekitConfig
 import hrln.interactive.sidekit.sdk.config.SidekitConfigSource
+import hrln.interactive.sidekit.sdk.config.SidekitPreferenceFiles
 
 /**
  * The local keypad configuration, stored in the same `sidekit_keypad` file Sidekit has always used.
@@ -16,7 +17,7 @@ import hrln.interactive.sidekit.sdk.config.SidekitConfigSource
  */
 class SharedPreferencesKeypadPreferences(
     context: Context,
-    fileName: String = "sidekit_keypad"
+    fileName: String = SidekitPreferenceFiles.KEYPAD
 ) : KeypadPreferences {
     private val prefs = context.applicationContext.getSharedPreferences(fileName, Context.MODE_PRIVATE)
 

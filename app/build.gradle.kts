@@ -71,6 +71,8 @@ android {
     packaging { resources.merges += setOf("META-INF/NOTICE.md", "META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.txt") }
     buildFeatures {
         compose = true
+        // BuildConfig.VERSION_NAME identifies the host build in the config contract.
+        buildConfig = true
     }
     testOptions {
         unitTests {

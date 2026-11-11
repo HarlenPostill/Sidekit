@@ -29,6 +29,21 @@ object SidekitContract {
     const val METHOD_GET_VERSION = "getVersion"
     const val METHOD_GET_CONFIG = "getConfig"
 
+    /** Values advertised in `getVersion`'s `capabilities` array. */
+    const val CAPABILITY_THEME = "theme"
+    const val CAPABILITY_KEYPAD = "keypad"
+    const val CAPABILITY_INPUT = "input"
+
+    /** Capabilities every provider built against this contract offers. */
+    val CAPABILITIES: List<String> = listOf(CAPABILITY_THEME, CAPABILITY_KEYPAD, CAPABILITY_INPUT)
+
+    /**
+     * The configuration authority of the Sidekit build whose package is [packageName].
+     *
+     * The stable build resolves to [AUTHORITY_STABLE] and the dev build to [AUTHORITY_DEV].
+     */
+    fun authorityForPackage(packageName: String): String = "$packageName.$PATH_CONFIG"
+
     /** Optional intent extra naming the host authority that launched the app. */
     const val EXTRA_HOST_AUTHORITY = "hrln.interactive.sidekit.extra.HOST_AUTHORITY"
 

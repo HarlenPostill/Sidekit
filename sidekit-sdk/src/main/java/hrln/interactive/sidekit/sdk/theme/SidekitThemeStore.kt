@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import hrln.interactive.sidekit.design.theme.CaseColour
 import hrln.interactive.sidekit.sdk.config.SidekitConfig
 import hrln.interactive.sidekit.sdk.config.SidekitConfigSource
+import hrln.interactive.sidekit.sdk.config.SidekitPreferenceFiles
 
 /** The theme choices a Sidekit-native app needs to render like its host. */
 data class SidekitThemeConfig(
@@ -42,7 +43,7 @@ interface SidekitThemeStore {
  */
 class SharedPreferencesSidekitThemeStore(
     context: android.content.Context,
-    fileName: String = "sidekit_settings"
+    fileName: String = SidekitPreferenceFiles.SETTINGS
 ) : SidekitThemeStore {
     private val prefs = context.applicationContext.getSharedPreferences(fileName, android.content.Context.MODE_PRIVATE)
 
