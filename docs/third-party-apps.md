@@ -339,7 +339,8 @@ built with the SDK. The two must not be conflated.
   native app ids. Unknown ids already survive storage, so installing Sideplay appends it
   automatically.
 - Launch with an explicit intent and pass an optional `EXTRA_HOST_AUTHORITY` so Sideplay
-  reads the configuration of the Sidekit build that launched it.
+  reads the configuration of the Sidekit build that launched it, plus `EXTRA_LAUNCH_ROUTE`
+  when the descriptor declares a route.
 - The descriptor only controls tile placement. It is not a trust signal; a malicious app
   can appear, but it can only launch itself.
 - When Sideplay ships standalone, remove `SubApp.Sideplay` and the embedded `apps/spotify`
@@ -363,7 +364,8 @@ The launcher shows at most one tile per package, with id `native:<package>` and 
 icon from `PackageManager`. A descriptor whose `MIN_SCHEMA` is newer than the host's schema is
 ignored. Launching uses an explicit intent to the advertised activity plus
 `EXTRA_HOST_AUTHORITY`, so the app reads the configuration of the Sidekit build that launched
-it. The descriptor only controls tile placement; it is not a trust signal.
+it, and `EXTRA_LAUNCH_ROUTE` when the descriptor declares a route. The descriptor only controls
+tile placement; it is not a trust signal.
 
 ## 6. What this enables in the Sideplay repository
 

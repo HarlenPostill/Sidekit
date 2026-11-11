@@ -62,20 +62,24 @@ class NativeAppsTest {
     }
 
     @Test
-    fun `launch intent is explicit and names the host authority`() {
-        val app = NativeApp("test.alpha", "test.alpha.MainActivity", "Alpha")
+    fun `launch intent is explicit and names the host authority and route`() {
+        val app = NativeApp("test.alpha", "test.alpha.MainActivity", "Alpha", launchRoute = "home")
 
         val intent = app.launchIntent(SidekitContract.AUTHORITY_DEV)
 
         assertEquals(SidekitContract.ACTION_NATIVE_APP, intent.action)
         assertEquals(ComponentName("test.alpha", "test.alpha.MainActivity"), intent.component)
         assertEquals(SidekitContract.AUTHORITY_DEV, intent.getStringExtra(SidekitContract.EXTRA_HOST_AUTHORITY))
+        assertEquals("home", intent.getStringExtra(SidekitContract.EXTRA_LAUNCH_ROUTE))
         assertNull(app.launchIntent().getStringExtra(SidekitContract.EXTRA_HOST_AUTHORITY))
+
+        val appWithoutRoute = NativeApp("test.beta", "test.beta.MainActivity", "Beta")
+        assertNull(appWithoutRoute.launchIntent().getStringExtra(SidekitContract.EXTRA_LAUNCH_ROUTE))
     }
 
     @Test
     fun `launch starts the explicit activity with this build as the configuration host`() {
-        val app = NativeApp("test.alpha", "test.alpha.MainActivity", "Alpha")
+        val app = NativeApp("test.alpha", "test.alpha.MainActivity", "Alpha", launchRoute = "home")
 
         assertTrue(app.launch(application))
 
@@ -85,5 +89,6 @@ class NativeAppsTest {
             SidekitContract.authorityForPackage(context.packageName),
             started.getStringExtra(SidekitContract.EXTRA_HOST_AUTHORITY)
         )
+        assertEquals("home", started.getStringExtra(SidekitContract.EXTRA_LAUNCH_ROUTE))
     }
 }

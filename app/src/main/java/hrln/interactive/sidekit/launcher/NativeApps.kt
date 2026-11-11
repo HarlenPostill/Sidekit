@@ -37,6 +37,7 @@ data class NativeApp(
     fun launchIntent(hostAuthority: String? = null): Intent = Intent(SidekitContract.ACTION_NATIVE_APP).apply {
         component = this@NativeApp.component
         if (!hostAuthority.isNullOrBlank()) putExtra(SidekitContract.EXTRA_HOST_AUTHORITY, hostAuthority)
+        launchRoute?.takeIf { it.isNotBlank() }?.let { putExtra(SidekitContract.EXTRA_LAUNCH_ROUTE, it) }
     }
 }
 

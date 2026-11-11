@@ -47,6 +47,9 @@ object SidekitContract {
     /** Optional intent extra naming the host authority that launched the app. */
     const val EXTRA_HOST_AUTHORITY = "hrln.interactive.sidekit.extra.HOST_AUTHORITY"
 
+    /** Optional intent extra naming the route the app should open when launched by Sidekit. */
+    const val EXTRA_LAUNCH_ROUTE = "hrln.interactive.sidekit.extra.LAUNCH_ROUTE"
+
     /** Action advertised by Sidekit-native app activities for launcher discovery. */
     const val ACTION_NATIVE_APP = "hrln.interactive.sidekit.action.NATIVE_APP"
 
