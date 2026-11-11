@@ -5,6 +5,9 @@ plugins {
 }
 
 val sidekitVersionName: String by extra
+val usePublishedSidekit = providers.gradleProperty("sidekitUsePublished")
+    .map(String::toBoolean)
+    .getOrElse(false)
 
 android {
     namespace = "hrln.interactive.sidekit.sample"
@@ -31,10 +34,14 @@ android {
 }
 
 dependencies {
-    // The smoke module depends on the SDK sources today. Once publishing is wired to a real
-    // artifact host, switch this to hrln.interactive.sidekit:sidekit-sdk:<version> so the build
-    // also catches missing POM dependencies.
-    implementation(project(":sidekit-sdk"))
+    // Normal development uses the project dependency. CI also builds this module with
+    // -PsidekitUsePublished=true after publishing to build/local-repo, which exercises the POM,
+    // transitive sidekit-design dependency and consumer rules.
+    if (usePublishedSidekit) {
+        implementation("hrln.interactive.sidekit:sidekit-sdk:$sidekitVersionName")
+    } else {
+        implementation(project(":sidekit-sdk"))
+    }
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)

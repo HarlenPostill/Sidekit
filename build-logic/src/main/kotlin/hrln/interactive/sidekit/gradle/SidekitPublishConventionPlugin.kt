@@ -11,15 +11,24 @@ import org.gradle.kotlin.dsl.create
 /**
  * Maven publication for a Sidekit Android library.
  *
- * The artifact host is deliberately not configured here: it is an open distribution decision.
- * Set `sidekitPublish { artifactId.set(...) }` in the module and add a repository wherever the
- * artifacts are published.
+ * A local staging repository is configured so CI can build a consumer against the published
+ * coordinates without credentials. The real artifact host is still an open distribution
+ * decision; add it wherever the artifacts are released.
  */
 class SidekitPublishConventionPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         project.pluginManager.apply("maven-publish")
         project.group = "hrln.interactive.sidekit"
         project.version = GitVersion.name(project)
+
+        project.extensions.configure<PublishingExtension> {
+            repositories {
+                maven {
+                    name = "sidekitLocal"
+                    url = project.rootProject.layout.buildDirectory.dir("local-repo").get().asFile.toURI()
+                }
+            }
+        }
 
         val sidekitPublish = project.extensions.create<SidekitPublishExtension>("sidekitPublish")
         sidekitPublish.artifactId.convention(project.name)

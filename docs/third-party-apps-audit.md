@@ -44,10 +44,10 @@ SDK-built apps can read the theme and keypad setup.
 - [x] **Fix or remove `launchRoute`.** `NativeApp.launchIntent()` now sends
       `SidekitContract.EXTRA_LAUNCH_ROUTE` when the descriptor declares a route, and the launch
       tests cover both the intent and the started activity.
-- [ ] **Validate publishing for real.** `:sample-app` still uses
-      `implementation(project(":sidekit-sdk"))`. Switch it to the published coordinates
-      (`hrln.interactive.sidekit:sidekit-sdk:<version>`) in CI so POM dependencies, resource
-      prefixing, and consumer rules are actually exercised.
+- [x] **Validate publishing locally.** The publish convention now stages artifacts in
+      `build/local-repo`, and the `Published SDK consumer` CI job builds `:sample-app` with
+      `-PsidekitUsePublished=true` against `hrln.interactive.sidekit:sidekit-sdk:<version>`.
+      Publishing to the real host (GitHub Packages) is still pending.
 - [ ] **Add the Settings/About disclosure.** State that apps built with the Sidekit SDK can read
       the case colour and keypad setup.
 - [ ] **Add a separate-APK acceptance test.** The current tests are Robolectric/in-process. Add an
@@ -109,6 +109,9 @@ SDK-built apps can read the theme and keypad setup.
 - Targeted unit tests for config, launcher, and home pass.
 - `spotlessCheck` passes.
 - `:app:lintDebug` and `:sidekit-sdk:lintDebug` pass.
+- `:sidekit` and `:sidekit-sdk` publish to `build/local-repo`, and `:sample-app:assembleDebug
+  -PsidekitUsePublished=true` resolves the published `sidekit-sdk` plus its transitive
+  `sidekit-design` dependency.
 
 ## Size
 

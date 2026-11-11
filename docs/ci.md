@@ -10,6 +10,7 @@ Gradle cache setup in [`.github/actions/android-setup`](../.github/actions/andro
 | --- | --- | --- |
 | Gradle wrapper validation | `gradle/actions/wrapper-validation` | A modified or unverified `gradle-wrapper.jar` |
 | Build | `./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug :sidekit-sdk:assembleDebug :sample-app:assembleDebug` | Compile errors and R8/keep-rule breakage that only release builds show |
+| Published SDK consumer | publish to `build/local-repo`, then `:sample-app:assembleDebug -PsidekitUsePublished=true` | Missing POM dependencies, broken transitive `sidekit-design` resolution and consumer rules |
 | Unit tests | `./gradlew testDebugUnitTest` | JVM, Robolectric and Compose tests in every module |
 | Android Lint | `./gradlew lintDebug` | API-level, manifest and resource problems; uploads SARIF to code scanning |
 | Kotlin formatting | `./gradlew spotlessCheck` | ktlint violations in files changed since `main` |
@@ -28,16 +29,20 @@ instrumentation tests exist.
 
 `:sidekit` and `:sidekit-sdk` are publishable libraries. Version metadata comes from git tags
 through the `sidekit.version` and `sidekit.publish` convention plugins in
-[`build-logic`](../build-logic). The artifact host is still an open decision, so no repository is
-configured; add one where the artifacts are released.
+[`build-logic`](../build-logic). The real artifact host is still an open decision, but the
+convention plugin also configures a local staging repository at `build/local-repo` so CI can
+validate the published artifacts without credentials.
 
 ```bash
-./gradlew :sidekit:publishToMavenLocal :sidekit-sdk:publishToMavenLocal
+./gradlew :sidekit:publishAllPublicationsToSidekitLocalRepository \
+  :sidekit-sdk:publishAllPublicationsToSidekitLocalRepository
+./gradlew :sample-app:assembleDebug -PsidekitUsePublished=true
 ```
 
-`:sample-app` consumes the SDK through a project dependency today, so it only catches compile
-breakage. Switch it to the published coordinates once an artifact host is chosen; that also
-makes it catch missing POM dependencies.
+`:sample-app` uses the project dependency by default. The `Published SDK consumer` CI job
+publishes both libraries to the local staging repository and rebuilds the sample with
+`-PsidekitUsePublished=true`, which exercises the POM, the transitive `sidekit-design`
+dependency and the consumer rules. Publishing to the real host remains a separate step.
 
 ## Formatting
 

@@ -1,6 +1,6 @@
 # Third-party apps and shared user configuration
 
-**Status:** In progress — tasks 1–5 implemented; task 6 next
+**Status:** In progress — tasks 1–5 implemented; local publishing validation added; GitHub Packages publication next
 **Date:** 11 November 2026
 **Branch:** `feat/third-party-apps`
 
@@ -31,8 +31,9 @@ Checked items are already in this branch. Unchecked items follow the recommended
 - [x] Declare dependencies used by the public API instead of relying on transitivity.
 - [x] Add `resourcePrefix = "sk_"` and prefix the font resources.
 - [x] Add `:sample-app` as a consumer smoke module and wire it into CI.
-- [ ] Publish to the chosen host and switch `:sample-app` to the published coordinates so it
-  also catches missing POM dependencies.
+- [x] Add a local staging publication and a CI consumer build against the published coordinates
+  so missing POM dependencies and transitive `sidekit-design` resolution are caught.
+- [ ] Publish to GitHub Packages and make the published coordinates the default for `:sample-app`.
 
 ### 3. Introduce `:sidekit-sdk` and store abstractions
 
