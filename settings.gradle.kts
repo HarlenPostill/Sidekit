@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             content {
@@ -25,4 +26,5 @@ dependencyResolutionManagement {
 rootProject.name = "Sidekit"
 include(":app")
 include(":sidekit")
- 
+include(":sidekit-sdk")
+include(":sample-app")

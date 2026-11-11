@@ -9,8 +9,8 @@ Gradle cache setup in [`.github/actions/android-setup`](../.github/actions/andro
 | Job | Command | Catches |
 | --- | --- | --- |
 | Gradle wrapper validation | `gradle/actions/wrapper-validation` | A modified or unverified `gradle-wrapper.jar` |
-| Build | `./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug` | Compile errors and R8/keep-rule breakage that only release builds show |
-| Unit tests | `./gradlew testDebugUnitTest` | JVM, Robolectric and Compose tests in both modules |
+| Build | `./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug :sidekit-sdk:assembleDebug :sample-app:assembleDebug` | Compile errors and R8/keep-rule breakage that only release builds show |
+| Unit tests | `./gradlew testDebugUnitTest` | JVM, Robolectric and Compose tests in every module |
 | Android Lint | `./gradlew lintDebug` | API-level, manifest and resource problems; uploads SARIF to code scanning |
 | Kotlin formatting | `./gradlew spotlessCheck` | ktlint violations in files changed since `main` |
 | Secret scan | `gitleaks/gitleaks-action` | Committed credentials, private keys and tokens |
@@ -23,6 +23,21 @@ an emulator: the only `androidTest` source today is the generated example, and t
 [PR template](../.github/pull_request_template.md) already requires physical-device
 testing for app changes. Add a `connectedDebugAndroidTest` job once real
 instrumentation tests exist.
+
+## Publishing
+
+`:sidekit` and `:sidekit-sdk` are publishable libraries. Version metadata comes from git tags
+through the `sidekit.version` and `sidekit.publish` convention plugins in
+[`build-logic`](../build-logic). The artifact host is still an open decision, so no repository is
+configured; add one where the artifacts are released.
+
+```bash
+./gradlew :sidekit:publishToMavenLocal :sidekit-sdk:publishToMavenLocal
+```
+
+`:sample-app` consumes the SDK through a project dependency today, so it only catches compile
+breakage. Switch it to the published coordinates once an artifact host is chosen; that also
+makes it catch missing POM dependencies.
 
 ## Formatting
 
@@ -55,13 +70,14 @@ ref.
 ## Running the pipeline locally
 
 ```bash
-./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug
+./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug :sidekit-sdk:assembleDebug :sample-app:assembleDebug
 ./gradlew testDebugUnitTest
 ./gradlew lintDebug
 ./gradlew spotlessCheck
 ```
 
-Reports are written to `app/build/reports/` and `sidekit/build/reports/`.
+Reports are written to `app/build/reports/`, `sidekit/build/reports/`, `sidekit-sdk/build/reports/`
+and `sample-app/build/reports/`.
 
 ## Branch protection
 
