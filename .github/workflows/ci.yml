@@ -38,6 +38,7 @@ jobs:
         run: >
           ./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug
           :sidekit-sdk:assembleDebug :sample-app:assembleDebug
+          :permission-test-app:assembleDebug :permission-test-app:assembleDebugAndroidTest
           --stacktrace
 
   published-consumer:

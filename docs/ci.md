@@ -9,7 +9,7 @@ Gradle cache setup in [`.github/actions/android-setup`](../.github/actions/andro
 | Job | Command | Catches |
 | --- | --- | --- |
 | Gradle wrapper validation | `gradle/actions/wrapper-validation` | A modified or unverified `gradle-wrapper.jar` |
-| Build | `./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug :sidekit-sdk:assembleDebug :sample-app:assembleDebug` | Compile errors and R8/keep-rule breakage that only release builds show |
+| Build | `./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug :sidekit-sdk:assembleDebug :sample-app:assembleDebug :permission-test-app:assembleDebug :permission-test-app:assembleDebugAndroidTest` | Compile errors and R8/keep-rule breakage that only release builds show |
 | Published SDK consumer | publish to `build/local-repo`, then `:sample-app:assembleDebug -PsidekitUsePublished=true` | Missing POM dependencies, broken transitive `sidekit-design` resolution and consumer rules |
 | Publish SDK | tag `v*` or manual dispatch, then publish to GitHub Packages | Release artifacts and POM metadata |
 | Unit tests | `./gradlew testDebugUnitTest` | JVM, Robolectric and Compose tests in every module |
@@ -92,7 +92,7 @@ ref.
 ## Running the pipeline locally
 
 ```bash
-./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug :sidekit-sdk:assembleDebug :sample-app:assembleDebug
+./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug :sidekit-sdk:assembleDebug :sample-app:assembleDebug :permission-test-app:assembleDebug :permission-test-app:assembleDebugAndroidTest
 ./gradlew testDebugUnitTest
 ./gradlew lintDebug
 ./gradlew spotlessCheck
