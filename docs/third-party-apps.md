@@ -84,9 +84,11 @@ Checked items are already in this branch. Unchecked items follow the recommended
 
 ### 6. Sideplay repository (separate repository)
 
-- [ ] Depend on the published `sidekit-design` and `sidekit-sdk` artifacts.
-- [ ] Build its own `MainActivity` on the SDK shell and move Sideplay-specific components.
-- [ ] Select host or local stores from `SidekitConfigClient.status`.
+- [x] Depend on the `sidekit-design` and `sidekit-sdk` artifacts (`1.4.0`; CI builds against
+  this branch until the release is published).
+- [x] Build its own `MainActivity` on the SDK shell and move Sideplay-specific components.
+- [x] Select host or local stores from `SidekitStores.forHostOrLocal`, falling back to the
+  app's own files when Sidekit is absent, older, or cannot return a complete configuration.
 - [x] Accept the credentials/queue/history reset. No one-time export or data transfer is
   required when the embedded app is removed.
 
