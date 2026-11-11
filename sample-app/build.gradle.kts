@@ -49,4 +49,5 @@ dependencies {
     implementation(libs.androidx.activity.compose)
 
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }

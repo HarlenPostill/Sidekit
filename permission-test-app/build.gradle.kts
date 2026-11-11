@@ -28,4 +28,5 @@ dependencies {
     // Deliberately no :sidekit-sdk dependency: the SDK manifest declares the read permission, and
     // this APK must stay without it so the provider sees a real unprivileged caller.
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
