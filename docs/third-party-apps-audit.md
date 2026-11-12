@@ -58,12 +58,13 @@ SDK-built apps can read the theme and keypad setup.
 - [x] **Fix or remove `launchRoute`.** `NativeApp.launchIntent()` now sends
       `SidekitContract.EXTRA_LAUNCH_ROUTE` when the descriptor declares a route, and the launch
       tests cover both the intent and the started activity.
-- [x] **Validate publishing locally.** The publish convention now stages artifacts in
-      `build/local-repo`, and the `Published SDK consumer` CI job builds `:sample-app` with
+- [x] **Validate publishing locally.** The publish convention stages the published layout in
+      `build/pages-repo`, and the `Published SDK consumer` CI job builds `:sample-app` with
       `-PsidekitUsePublished=true` against `hrln.interactive.sidekit:sidekit-sdk:<version>`.
-- [x] **Publish to GitHub Packages.** `-PsidekitPublishGitHub=true` adds the
-      `sidekitGitHub` repository, and the `Publish SDK` workflow publishes both libraries on
-      `v*` tags with `packages: write`. Making the published coordinates the default for
+- [x] **Publish to GitHub Pages.** `-PsidekitPublishPages=true` stages into `build/pages-repo`,
+      and the `Publish SDK` workflow pushes that tree to `gh-pages`, which Pages serves as a
+      static Maven repository (`contents: write`, `.nojekyll`, older versions kept). No package
+      registry and no consumer credentials. Making the published coordinates the default for
       `:sample-app` waits for the first release.
 - [x] **Add the Settings/About disclosure.** About now says that SDK-built apps can read the case
       colour and keypad setup, and names what stays private.
@@ -137,13 +138,14 @@ no `tools:node="remove"` workaround. See
   `:permission-test-app:lintDebug` pass.
 - `:sample-app:assembleDebug -PsidekitUsePublished=true` resolves the freshly published
   `sidekit-sdk` and its transitive `sidekit-design` dependency.
-- `:sidekit:publishAllPublicationsToSidekitGitHubRepository -PsidekitPublishGitHub=true` is
-  configured and dry-run clean; the `Publish SDK` workflow runs it on `v*` tags.
+- `:sidekit:publishAllPublicationsToSidekitPagesRepository -PsidekitPublishPages=true` stages the
+  exact tree the workflow deploys, and `:sample-app:assembleDebug -PsidekitUsePublished=true`
+  resolves both artifacts from `build/pages-repo` after clearing the Gradle cache.
 - The published POM points at the repository that owns the code, and `sidekit-sdk`'s dependency
   resolves to the published `sidekit-design` artifact.
-- `:sidekit` and `:sidekit-sdk` publish to `build/local-repo`, and `:sample-app:assembleDebug
-  -PsidekitUsePublished=true` resolves the published `sidekit-sdk` plus its transitive
-  `sidekit-design` dependency.
+- `:sidekit` and `:sidekit-sdk` also publish to `build/local-repo` for quick local checks, and
+  `:sample-app:assembleDebug -PsidekitUsePublished=true` resolves the published `sidekit-sdk`
+  plus its transitive `sidekit-design` dependency.
 
 ## Size
 

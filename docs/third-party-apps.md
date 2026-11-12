@@ -1,6 +1,6 @@
 # Third-party apps and shared user configuration
 
-**Status:** Implemented — tasks 1–5 done, including local publishing validation, the host-store factory, capability checks, the About disclosure, the cross-UID permission test and GitHub Packages publication; first tagged release next
+**Status:** Implemented — tasks 1–5 done, including local publishing validation, the host-store factory, capability checks, the signing-certificate trust list, the About disclosure, the cross-UID permission test and GitHub Pages publication; first tagged release next
 **Date:** 11 November 2026
 **Branch:** `feat/third-party-apps`
 
@@ -23,7 +23,8 @@ Checked items are already in this branch. Unchecked items follow the recommended
 - [x] Use the public `normal` read-configuration permission, backed by a signing-certificate
   trust list (`TrustedCallers`, `res/values/trusted_apps.xml`): the permission records intent,
   the certificate decides. The same list gates Sidekit-native launcher tiles.
-- [x] Choose the artifact host: GitHub Packages.
+- [x] Choose the artifact host: GitHub Pages serving a static Maven repository, so consumers need
+  no credentials.
 - [x] Keep T9 user words out of the v1 contract.
 
 ### 2. Publish `:sidekit` unchanged
@@ -36,7 +37,7 @@ Checked items are already in this branch. Unchecked items follow the recommended
 - [x] Add `:sample-app` as a consumer smoke module and wire it into CI.
 - [x] Add a local staging publication and a CI consumer build against the published coordinates
   so missing POM dependencies and transitive `sidekit-design` resolution are caught.
-- [x] Publish to GitHub Packages from the `Publish SDK` workflow on `v*` tags.
+- [x] Publish to the `gh-pages` branch from the `Publish SDK` workflow on `v*` tags.
 - [ ] Make the published coordinates the default for `:sample-app` after the first release.
 
 ### 3. Introduce `:sidekit-sdk` and store abstractions
@@ -439,10 +440,10 @@ tile placement; it is not a trust signal.
 
 Live status is tracked in the §0 checklist.
 
-1. **Decide the contract and distribution.** Pick the artifact channel (GitHub Packages is
-   the lowest-friction for this repository; Maven Central if third-party apps should
-   consume it without authentication), the permission level (`normal` recommended), and
-   whether the SDK is one artifact or `design` plus `sdk`.
+1. **Decide the contract and distribution.** Pick the artifact channel (a static Maven
+   repository on GitHub Pages, so third-party apps consume it without authentication), the
+   permission level (`normal` plus a signing-certificate trust list), and whether the SDK is one
+   artifact or `design` plus `sdk`.
 2. **Publish `:sidekit` unchanged.** Add `maven-publish`, fix the manifest permission
    leakage, declare transitive dependencies, and add a consumer smoke module. No behaviour
    change yet.
@@ -475,10 +476,11 @@ A separate test APK must be able to:
 
 Decided on 11 November 2026:
 
-- **Artifact host:** GitHub Packages. Reconsider Maven Central only if public,
-  authentication-free consumption becomes a requirement.
-- **Permission level:** public `normal`. No runtime consent prompt and no signing allowlist
-  in v1.
+- **Artifact host:** GitHub Pages. GitHub Packages requires a token even for public artifacts,
+  which defeats the point of a third-party SDK; a static Maven tree on `gh-pages` is public and
+  needs no third party. Maven Central stays an option if an official channel is wanted later.
+- **Permission level:** public `normal`, backed by a bundled signing-certificate trust list
+  (`TrustedCallers`). No runtime consent prompt; adding an app is one line and a release.
 - **T9 user words:** never shared in v1. They may become an explicit opt-in capability later.
 - **Artifact layout:** separate `sidekit-design` and `sidekit-sdk` artifacts.
 - **Accessibility service:** Sidekit keeps the keypad accessibility service. Sideplay ships a
