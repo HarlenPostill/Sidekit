@@ -53,6 +53,11 @@ class SidekitPublishConventionPlugin : Plugin<Project> {
             }
         }
 
+        // GitHub Packages publishes under whichever repository runs the workflow; the POM points at
+        // the canonical project so a fork's artifacts still describe where the code lives.
+        val projectUrl = githubRepository?.let { "https://github.com/$it" }
+            ?: "https://github.com/HarlenPostill/Sidekit"
+
         val sidekitPublish = project.extensions.create<SidekitPublishExtension>("sidekitPublish")
         sidekitPublish.artifactId.convention(project.name)
         sidekitPublish.description.convention("Sidekit library ${project.name}")
@@ -79,7 +84,7 @@ class SidekitPublishConventionPlugin : Plugin<Project> {
                         pom {
                             name.set(project.name)
                             description.set(sidekitPublish.description.get())
-                            url.set("https://github.com/manuel-rtsch/Sidekit")
+                            url.set(projectUrl)
                             licenses {
                                 license {
                                     name.set("MIT License")
