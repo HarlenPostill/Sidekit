@@ -1,9 +1,9 @@
 # Third-party apps branch audit
 
-**Branch:** `feat/third-party-apps` (based on `upstream/main` at `3debe06`)
-**Audited:** 11 November 2026
-**Status:** Foundation is sound; the must-fix items are done. Rebase onto `upstream/main` and run
-the two instrumentation tests on a device before opening the PR.
+**Branch:** `feat/third-party-apps` (up to date with `upstream/main` at `4886a94`)
+**Audited:** 11 November 2026, re-audited after the `upstream/main` merge
+**Status:** Foundation is sound; the must-fix items are done. Run the two instrumentation tests on
+a device before opening the PR.
 
 ## Branch strategy
 
@@ -33,15 +33,28 @@ SDK-built apps can read the theme and keypad setup.
 
 ### Merge and review
 
-- [x] **Keep the branch based on `upstream/main`.** The branch is 5 commits ahead of
-      `3debe06` and 0 behind. Rebase onto `upstream/main` again before opening the PR.
+- [x] **Keep the branch based on `upstream/main`.** The branch is 0 commits behind
+      `upstream/main`; upstream's keypad, Sundial and Arrange apps work is merged in, with the
+      SDK's stores and input controller adapted to it.
 - [x] **Drop formatter-only churn.** Formatter-only files were reverted to `upstream/main` and
-      only semantic SDK-extraction edits were re-applied. The remaining diffs in files such as
-      `VideoScreens.kt`, `OnboardingScreen.kt`, `SettingsViewModel.kt`, `BankingRepository.kt`,
-      `MusicScreens.kt`, `PhotosScreens.kt`, and `ArrangeHomeScreen.kt` are the actual SDK moves.
+      only semantic SDK-extraction edits were re-applied. What still looks like formatting in
+      `VideoScreens.kt`, `OnboardingScreen.kt`, `PhotosScreens.kt`, `MusicScreens.kt` and others is
+      ktlint's `android_studio` style, which the shared Spotless config applies to every file the
+      branch touches: it drops trailing commas and expands single-line `if`/`else` bodies across the
+      whole file. Those files also carry a semantic edit (the SDK imports and call-site changes),
+      so `spotlessCheck` fails without the reformat.
 
 ### Correctness and completeness
 
+- [x] **Define the read permission in the host, not the SDK.** `sidekit-sdk` declared
+      `READ_APP_CONFIG`, so every consumer inherited the declaration and any consumer signed with
+      a different key failed to install beside Sidekit (`INSTALL_FAILED_DUPLICATE_PERMISSION`).
+      The `<permission>` element now lives in the Sidekit app manifest next to the provider; the
+      SDK manifest keeps only the `<uses-permission>` request. See
+      [third-party-apps-permissions.md](third-party-apps-permissions.md).
+- [x] **Keep the SDK's key loop lint-clean.** `SidekitActivity` reaches
+      `super.dispatchKeyEvent` through one annotated helper instead of an inline lambda, so
+      `:sidekit-sdk:lintDebug` passes without a suppressed error inside the lazy field.
 - [x] **Fix or remove `launchRoute`.** `NativeApp.launchIntent()` now sends
       `SidekitContract.EXTRA_LAUNCH_ROUTE` when the descriptor declares a route, and the launch
       tests cover both the intent and the started activity.
@@ -91,6 +104,15 @@ SDK-built apps can read the theme and keypad setup.
 - [x] **Hide implementation details.** `SidekitPreferenceFiles` and `SidekitConfigCodec` are
       marked `@RestrictTo(LIBRARY_GROUP)`; a separate internal artifact is still an option.
 
+### Host permission ownership
+
+`sidekit-sdk` used to declare `READ_APP_CONFIG` in its library manifest, so every consumer
+inherited the declaration and a differently signed consumer installed beside Sidekit failed with
+`INSTALL_FAILED_DUPLICATE_PERMISSION`. Ownership now sits in the Sidekit app manifest, next to the
+provider that uses it; the SDK manifest keeps only the `<uses-permission>` request. Consumers need
+no `tools:node="remove"` workaround. See
+[third-party-apps-permissions.md](third-party-apps-permissions.md).
+
 ## Accepted for v1
 
 - Unrestricted `normal`-permission sharing of the selected contract.
@@ -111,12 +133,14 @@ SDK-built apps can read the theme and keypad setup.
   `sidekit-sdk` and its transitive `sidekit-design` dependency.
 - `:sidekit:publishAllPublicationsToSidekitGitHubRepository -PsidekitPublishGitHub=true` is
   configured and dry-run clean; the `Publish SDK` workflow runs it on `v*` tags.
+- The published POM points at the repository that owns the code, and `sidekit-sdk`'s dependency
+  resolves to the published `sidekit-design` artifact.
 - `:sidekit` and `:sidekit-sdk` publish to `build/local-repo`, and `:sample-app:assembleDebug
   -PsidekitUsePublished=true` resolves the published `sidekit-sdk` plus its transitive
   `sidekit-design` dependency.
 
 ## Size
 
-- 12 commits, 103 files, +4,956 / −968 (net +3,988).
-- Net production code is roughly +2.1k lines, mostly the new `:sidekit-sdk` module.
-- Tests: 16 files, +700 / −60. Docs: 2 files, +520 / −4. Build/publish: 16 files, +360 / −55.
+- 30 commits (including the `upstream/main` merge), 153 files, +5,962 / −1,053 (net +4,909).
+- Net production code is roughly +2.3k lines, mostly the new `:sidekit-sdk` module.
+- Tests: 16 files, +700 / −60. Docs: 4 files, +740 / −9. Build/publish: 16 files, +360 / −55.

@@ -20,11 +20,18 @@ Gradle cache setup in [`.github/actions/android-setup`](../.github/actions/andro
 | CodeQL | manual Gradle build + `codeql-action` | Security data-flow issues in Kotlin and Java (`codeql.yml`) |
 | Dependency graph | `gradle/actions/dependency-submission` | Keeps the graph that dependency review reads up to date (`dependency-graph.yml`) |
 
-These checks gate pull requests. The repository does not run instrumented tests on
-an emulator: the only `androidTest` source today is the generated example, and the
-[PR template](../.github/pull_request_template.md) already requires physical-device
-testing for app changes. Add a `connectedDebugAndroidTest` job once real
-instrumentation tests exist.
+These checks gate pull requests. The repository does not run instrumented tests on an emulator:
+the two real ones (`:sample-app` and `:permission-test-app`) need Sidekit installed beside them on
+the same device to exercise the exported configuration provider and its cross-UID permission
+boundary, and the [PR template](../.github/pull_request_template.md) already requires
+physical-device testing for app changes. Run them by hand against an installed debug Sidekit:
+
+```bash
+./gradlew :app:installDebug
+./gradlew :sample-app:connectedDebugAndroidTest :permission-test-app:connectedDebugAndroidTest
+```
+
+Add a `connectedDebugAndroidTest` job once an emulator setup that installs all three APKs exists.
 
 ## Publishing
 

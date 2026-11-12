@@ -1,13 +1,14 @@
 # Third-party apps and shared user configuration
 
-**Status:** In progress — tasks 1–5 implemented; local publishing validation, host-store factory, capability checks, About disclosure, the cross-UID permission test and GitHub Packages publication added; first tagged release next
+**Status:** Implemented — tasks 1–5 done, including local publishing validation, the host-store factory, capability checks, the About disclosure, the cross-UID permission test and GitHub Packages publication; first tagged release next
 **Date:** 11 November 2026
 **Branch:** `feat/third-party-apps`
 
-Sideplay currently lives inside Sidekit as an in-process sub-app. The goal is to move it
-to its own repository and APK while keeping Sidekit's design system, keypad behaviour and
-launcher integration. Sideplay should read Sidekit's user configuration when Sidekit is
-installed, and show its own theme and keyboard settings only when Sidekit is absent.
+An app built on Sidekit's design system — Sideplay in the fork that produced this work — starts
+life inside Sidekit as an in-process sub-app. The goal is to move it to its own repository and APK
+while keeping Sidekit's design system, keypad behaviour and launcher integration. It should read
+Sidekit's user configuration when Sidekit is installed, and show its own theme and keyboard
+settings only when Sidekit is absent.
 
 This document maps the work required in this repository. Sideplay-specific migration is
 listed separately because it happens in the new repository.
