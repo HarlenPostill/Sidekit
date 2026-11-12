@@ -207,7 +207,7 @@
         </provider>
         <!-- Keypad top-left key -> Back (see KeypadAccessibilityService). -->
         <service
-            android:name="hrln.interactive.sidekit.sdk.system.KeypadAccessibilityService"
+            android:name=".system.KeypadAccessibilityService"
             android:exported="true"
             android:label="@string/keypad_service_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
