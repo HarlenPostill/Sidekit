@@ -53,5 +53,10 @@ data class SidekitSpacing(
 data class SidekitShapes(
     val item: RoundedCornerShape = RoundedCornerShape(36.dp),
     val actionButton: RoundedCornerShape = RoundedCornerShape(48.dp),
-    val control: RoundedCornerShape = RoundedCornerShape(12.dp)
+    val control: RoundedCornerShape = RoundedCornerShape(12.dp),
+    /**
+     * Artwork inside a list item. 24 on a 68 thumbnail keeps roughly the item's 36:104 corner
+     * ratio, so the cover follows the row without turning into a circle.
+     */
+    val artwork: RoundedCornerShape = RoundedCornerShape(24.dp)
 )

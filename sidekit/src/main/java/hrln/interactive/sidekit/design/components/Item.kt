@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import hrln.interactive.sidekit.design.icons.SidekitIcon
@@ -112,7 +113,8 @@ fun SidekitItem(
 /**
  * Compact Item: the short 74-high row used for list-level actions such as "See more" and
  * "Search in". It keeps the item variants but steps the type scale down so the row still reads
- * as a row instead of a squeezed tile.
+ * as a row instead of a squeezed tile. A secondary value sits at the right edge so label/value
+ * rows scan as two columns.
  */
 @Composable
 fun SidekitCompactItem(
@@ -147,7 +149,8 @@ fun SidekitCompactItem(
                     secondary,
                     Modifier.weight(1f),
                     style = SidekitTheme.typography.small,
-                    color = SidekitTheme.colors.surfaceA6
+                    color = LocalSidekitContentColor.current.copy(alpha = 0.82f),
+                    textAlign = TextAlign.End
                 )
             } else if (showLinkArrow) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
