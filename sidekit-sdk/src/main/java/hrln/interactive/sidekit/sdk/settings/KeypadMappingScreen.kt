@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -52,10 +51,10 @@ fun KeypadMappingScreen(back: () -> Unit, learn: (KeypadModule, KeypadControl) -
     SidekitScaffold("Keypad mapping", actions = listOf(SideAction.back("back", "Settings", back)), options = options) { padding ->
         SidekitList(padding, state = list) {
             item {
-                SidekitItem("Mapping", Modifier.height(SidekitTheme.spacing.compactRowHeight).listFade(list, 0), secondary = if (custom == null) "Automatic" else "Custom", onClick = ::toggle)
+                SidekitCompactItem("Mapping", Modifier.listFade(list, 0), secondary = if (custom == null) "Automatic" else "Custom", onClick = ::toggle)
             }
-            if (custom != null) item { SidekitItem("Layout", Modifier.height(SidekitTheme.spacing.compactRowHeight).listFade(list, 1), secondary = custom.label, onClick = ::nextLayout) }
-            item { SidekitItem("Key tester", Modifier.height(SidekitTheme.spacing.compactRowHeight).listFade(list, 2), showLinkArrow = true, onClick = tester) }
+            if (custom != null) item { SidekitCompactItem("Layout", Modifier.listFade(list, 1), secondary = custom.label, onClick = ::nextLayout) }
+            item { SidekitCompactItem("Key tester", Modifier.listFade(list, 2), showLinkArrow = true, onClick = tester) }
             item {
                 SidekitText(
                     if (custom == null) {
@@ -71,9 +70,9 @@ fun KeypadMappingScreen(back: () -> Unit, learn: (KeypadModule, KeypadControl) -
             if (custom != null) {
                 itemsIndexed(KeypadControls.of(custom), key = { _, c -> c.keyCode }) { index, control ->
                     val bound = bindings[control.keyCode]
-                    SidekitItem(
+                    SidekitCompactItem(
                         control.label,
-                        Modifier.height(SidekitTheme.spacing.compactRowHeight).listFade(list, index + 4),
+                        Modifier.listFade(list, index + 4),
                         secondary = bound?.label ?: "Default",
                         // Moved keys stand out; the rest read as defaults.
                         icon = if (bound != null) SidekitIcon.Edit else null,
@@ -196,7 +195,7 @@ fun KeyCaptureContent(module: KeypadModule, control: KeypadControl, step: Captur
             when (step) {
                 is CaptureStep.Waiting -> {
                     item {
-                        SidekitItem("Listening…", Modifier.height(SidekitTheme.spacing.compactRowHeight), secondary = "${step.secondsLeft} s", colour = ItemColour.Muted)
+                        SidekitCompactItem("Listening…", secondary = "${step.secondsLeft} s", colour = ItemColour.Muted)
                     }
                     item {
                         SidekitText(
@@ -209,7 +208,7 @@ fun KeyCaptureContent(module: KeypadModule, control: KeypadControl, step: Captur
 
                 is CaptureStep.Heard -> {
                     item {
-                        SidekitItem(step.key.label, Modifier.height(SidekitTheme.spacing.compactRowHeight), secondary = step.key.device.ifEmpty { "Keypad" }, icon = SidekitIcon.Check)
+                        SidekitCompactItem(step.key.label, secondary = step.key.device.ifEmpty { "Keypad" }, icon = SidekitIcon.Check)
                     }
                     item {
                         val text = when {
