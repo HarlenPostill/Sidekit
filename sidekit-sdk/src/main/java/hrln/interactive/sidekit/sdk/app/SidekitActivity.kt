@@ -49,7 +49,7 @@ abstract class SidekitActivity : ComponentActivity() {
         SidekitInputController(
             keypad = keypad,
             chrome = chrome,
-            dispatch = { event -> super.dispatchKeyEvent(event) },
+            dispatch = ::dispatchToPlatform,
             onBack = { onBackPressedDispatcher.onBackPressed() }
         )
     }
@@ -95,10 +95,12 @@ abstract class SidekitActivity : ComponentActivity() {
     }
 
     // Overriding dispatchKeyEvent is the only way to see a keypad event before Compose or the
-    // system consumes it; lint flags the override because ComponentActivity marks it @RestrictTo.
+    // system consumes it; lint flags both the override and the super call because ComponentActivity
+    // marks them @RestrictTo.
     @SuppressLint("RestrictedApi")
-    final override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (input.handle(event)) return true
-        return super.dispatchKeyEvent(event)
-    }
+    final override fun dispatchKeyEvent(event: KeyEvent): Boolean = input.handle(event) || dispatchToPlatform(event)
+
+    /** The platform path for a key Sidekit did not consume; also used by the Sundial holds. */
+    @SuppressLint("RestrictedApi")
+    private fun dispatchToPlatform(event: KeyEvent): Boolean = super.dispatchKeyEvent(event)
 }
