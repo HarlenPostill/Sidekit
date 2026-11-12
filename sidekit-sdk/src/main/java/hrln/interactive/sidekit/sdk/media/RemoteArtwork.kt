@@ -61,6 +61,10 @@ object RemoteArtwork {
     internal const val MAX_DISK_BYTES = 16L * 1024 * 1024
     private const val MAX_DOWNLOAD_BYTES = 8 * 1024 * 1024
     private const val TIMEOUT_MS = 10_000
+    private const val ATOMIC_TEMP_SUFFIX = ".new"
+
+    /** Serialises the delete pass so two trims never account for the same bytes twice. */
+    private val trimLock = Any()
 
     @Volatile private var memory: LruCache<String, Bitmap>? = null
 
@@ -209,16 +213,33 @@ object RemoteArtwork {
         trim(cacheDir(context))
     }
 
-    /** Keeps the disk cache under [MAX_DISK_BYTES], dropping least-recently-used files first. */
+    /**
+     * Keeps the disk cache under [MAX_DISK_BYTES], dropping least-recently-used files first.
+     *
+     * [load] runs on two threads at once, so this directory changes while it is being trimmed:
+     * in-flight [AtomicFile] writes add `.new` files and finish by renaming them. Metadata is
+     * therefore read once into [Entry] values and sorted afterwards. A comparator that re-reads
+     * `lastModified()` sees a file's key change between comparisons when a concurrent write lands;
+     * TimSort then throws `IllegalArgumentException: Comparison method violates its general
+     * contract!` and that kills the process.
+     */
     internal fun trim(dir: File, maxBytes: Long = MAX_DISK_BYTES) {
-        val files = dir.listFiles()?.sortedBy { it.lastModified() } ?: return
-        var total = files.sumOf { it.length() }
-        for (file in files) {
-            if (total <= maxBytes) break
-            total -= file.length()
-            file.delete()
+        val entries = dir.listFiles()
+            ?.filterNot { it.name.endsWith(ATOMIC_TEMP_SUFFIX) }
+            ?.map { file -> Entry(file, file.length(), file.lastModified()) }
+            ?.sortedBy { it.lastModified }
+            ?: return
+        synchronized(trimLock) {
+            var total = entries.sumOf { it.bytes }
+            for (entry in entries) {
+                if (total <= maxBytes) break
+                total -= entry.bytes
+                entry.file.delete()
+            }
         }
     }
+
+    private class Entry(val file: File, val bytes: Long, val lastModified: Long)
 
     /** Power of two that keeps the decode near [w] x [h] instead of full resolution. */
     internal fun sampleSize(width: Int, height: Int, w: Int, h: Int): Int {
