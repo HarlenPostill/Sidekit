@@ -51,7 +51,8 @@ open class SidekitConfigProvider : ContentProvider() {
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
         if (!callerCanRead()) {
-            throw SecurityException("Missing ${SidekitContract.PERMISSION_READ_APP_CONFIG}")
+            val permission = context?.packageName?.let(SidekitContract::readPermissionForPackage)
+            throw SecurityException("Missing $permission")
         }
         return when (method) {
             SidekitContract.METHOD_GET_VERSION -> readConfig().let { config ->
@@ -68,11 +69,14 @@ open class SidekitConfigProvider : ContentProvider() {
      * Whether the current caller holds the read permission.
      *
      * `readPermission` guards normal provider access, but it does not automatically guard [call].
-     * This hook is open so tests can exercise both outcomes without a second installed app.
+     * The permission is named after this build's package, so the stable and dev builds each
+     * declare and check their own. This hook is open so tests can exercise both outcomes without a
+     * second installed app.
      */
     internal open fun callerCanRead(): Boolean {
         val context = context ?: return false
-        return context.checkCallingPermission(SidekitContract.PERMISSION_READ_APP_CONFIG) == PackageManager.PERMISSION_GRANTED
+        val permission = SidekitContract.readPermissionForPackage(context.packageName)
+        return context.checkCallingPermission(permission) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun readConfig(): SidekitConfig {

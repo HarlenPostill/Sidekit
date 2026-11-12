@@ -150,3 +150,22 @@ no `tools:node="remove"` workaround. See
 - 30 commits (including the `upstream/main` merge), 153 files, +5,962 / −1,053 (net +4,909).
 - Net production code is roughly +2.3k lines, mostly the new `:sidekit-sdk` module.
 - Tests: 16 files, +700 / −60. Docs: 4 files, +740 / −9. Build/publish: 16 files, +360 / −55.
+
+## Permission scoping (post-merge)
+
+Moving the permission into the host manifest fixed the client-side duplicate, but both Sidekit
+builds then declared the same fixed name. A release-signed stable build and a debug-signed dev
+build could not be installed together:
+
+```
+INSTALL_FAILED_DUPLICATE_PERMISSION: Package hrln.interactive.sidekit.dev attempting to
+redeclare permission hrln.interactive.sidekit.permission.READ_APP_CONFIG already owned by
+hrln.interactive.sidekit
+```
+
+Reproduced with a release APK signed by a throwaway key beside the debug-signed dev APK. The
+permission name now follows the application id (`${applicationId}.permission.READ_APP_CONFIG`),
+the provider checks `SidekitContract.readPermissionForPackage(packageName)`, and the SDK requests
+both known names. After the change the two builds install together, `dumpsys package permissions`
+lists one definition per build, and the sample app on the Sidephone shows the dev permission
+`granted=true` while the stable name is simply undefined.

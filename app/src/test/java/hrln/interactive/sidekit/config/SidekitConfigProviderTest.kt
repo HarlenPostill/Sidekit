@@ -141,7 +141,8 @@ class SidekitConfigProviderTest {
         )
         assertTrue(info.exported)
         assertEquals(SidekitContract.authorityForPackage(context.packageName), info.authority)
-        assertEquals(SidekitContract.PERMISSION_READ_APP_CONFIG, info.readPermission)
+        // Named after the host package so the stable and dev builds can coexist.
+        assertEquals(SidekitContract.readPermissionForPackage(info.packageName), info.readPermission)
         assertNull(info.writePermission)
         assertFalse(info.grantUriPermissions)
     }

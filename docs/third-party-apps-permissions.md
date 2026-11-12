@@ -1,30 +1,54 @@
 # Third-party app permissions and the host config provider
 
 The SDK exposes Sidekit's theme and keypad configuration through an exported, read-only provider.
-Access is guarded by `hrln.interactive.sidekit.permission.READ_APP_CONFIG`, a `normal` permission
-that Android grants at install time.
+Access is guarded by a `normal` permission that Android grants at install time:
+`hrln.interactive.sidekit.permission.READ_APP_CONFIG` for the stable build and
+`hrln.interactive.sidekit.dev.permission.READ_APP_CONFIG` for the dev build.
 
 ## Who declares what
 
 The permission is **defined by the host**, in Sidekit's own manifest, next to the provider that
-uses it:
+uses it, and its name follows the application id:
 
 ```xml
 <!-- app/src/main/AndroidManifest.xml -->
 <permission
-    android:name="hrln.interactive.sidekit.permission.READ_APP_CONFIG"
+    android:name="${applicationId}.permission.READ_APP_CONFIG"
     android:protectionLevel="normal" />
 ```
 
-The SDK manifest only **requests** it, so every consumer app inherits the request and nothing else:
+The SDK manifest only **requests** both names, so every consumer app inherits the requests and
+nothing else:
 
 ```xml
 <!-- sidekit-sdk/src/main/AndroidManifest.xml -->
 <uses-permission android:name="hrln.interactive.sidekit.permission.READ_APP_CONFIG" />
+<uses-permission android:name="hrln.interactive.sidekit.dev.permission.READ_APP_CONFIG" />
 ```
+
+A request for a name nothing defines is ignored, so a client can ask for both from the start and
+whichever build is installed grants its own. `SidekitContract.readPermissionForPackage` derives the
+name the host checks, and `SidekitContract.READ_PERMISSIONS` lists the ones a client requests.
 
 A consumer therefore needs no manifest changes of its own. It can ask for the permission from the
 moment it is built, and reading the provider starts working as soon as Sidekit is installed.
+
+## Why the name follows the application id
+
+Two installed packages cannot define one `normal` permission unless they share a signing
+certificate. The stable build and the dev build are separate packages but would have declared the
+same name, so a release-signed stable Sidekit plus a debug-signed dev build could not be installed
+together:
+
+```
+INSTALL_FAILED_DUPLICATE_PERMISSION: Package hrln.interactive.sidekit.dev attempting to
+redeclare permission hrln.interactive.sidekit.permission.READ_APP_CONFIG already owned by
+hrln.interactive.sidekit
+```
+
+Scoping the name to the application id removes the shared definition entirely; each build owns its
+own permission and checks its own (`SidekitConfigProvider.callerCanRead`). The stable name is
+unchanged, so clients built against the contract keep working.
 
 ## Why the definition does not live in the SDK
 
