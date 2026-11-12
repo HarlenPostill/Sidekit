@@ -41,7 +41,7 @@ class ArrangeHomeTest {
         SidekitPreferences(context).hiddenApps = emptySet()
         NativeApps.invalidate()
         addNativeAppForTest(context, "test.sideplay", "Sideplay")
-        NativeApps.cached(context)
+        NativeApps.cached(context) { true }
     }
 
     private fun arrange() {

@@ -169,3 +169,23 @@ the provider checks `SidekitContract.readPermissionForPackage(packageName)`, and
 both known names. After the change the two builds install together, `dumpsys package permissions`
 lists one definition per build, and the sample app on the Sidephone shows the dev permission
 `granted=true` while the stable name is simply undefined.
+
+## Access control (post-audit decision)
+
+The read permission is `normal`, which Android grants to any app that requests it, so it gated
+nothing. The exposure is presentation and input configuration — no personal content — but the
+contract is additive by design, so the door would widen with every future field, silently.
+
+Decision: keep the open `normal` permission as the Android-level declaration and decide access by
+signing certificate (`TrustedCallers`). An app is trusted when it is signed with Sidekit's own
+certificate or its certificate digest is listed in `res/values/trusted_apps.xml`; the trust list is
+bundled, so adding a partner is a Sidekit release and there is no runtime approval flow.
+
+The same policy closes the tile-injection hole: only trusted apps appear as native launcher tiles,
+a `builtin:` app id is refused, and duplicate app ids collapse to one tile. Clients see
+`HostStatus.NotPermitted` when the host refuses them, and hosts advertise
+`SidekitContract.CAPABILITY_TRUST`.
+
+Verified on the Sidephone with the dev host: debug-signed client reads the host; the same client
+re-signed with a throwaway key reports `NotPermitted`; listing that certificate makes it readable
+again (colon-separated digest form).

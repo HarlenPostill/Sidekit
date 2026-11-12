@@ -20,7 +20,9 @@ Checked items are already in this branch. Unchecked items follow the recommended
 ### 1. Contract and distribution
 
 - [x] Split the SDK into two artifacts: `sidekit-design` and `sidekit-sdk`.
-- [x] Use the public `normal` read-configuration permission.
+- [x] Use the public `normal` read-configuration permission, backed by a signing-certificate
+  trust list (`TrustedCallers`, `res/values/trusted_apps.xml`): the permission records intent,
+  the certificate decides. The same list gates Sidekit-native launcher tiles.
 - [x] Choose the artifact host: GitHub Packages.
 - [x] Keep T9 user words out of the v1 contract.
 

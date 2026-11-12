@@ -209,6 +209,23 @@ class SidekitConfigProviderTest {
     }
 
     @Test
+    fun `a host that refuses the caller reports not permitted`() {
+        val refusing = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun call(method: String, arg: String?, extras: Bundle?): Bundle? = throw SecurityException("not trusted")
+            override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? = null
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int = 0
+        }
+        registerHost(SidekitContract.AUTHORITY_DEV, refusing)
+
+        assertEquals(HostStatus.NotPermitted, SidekitConfigClient.status(context, SidekitContract.AUTHORITY_DEV))
+        assertNull(SidekitConfigClient.read(context, SidekitContract.AUTHORITY_DEV))
+    }
+
+    @Test
     fun `a host without a version response is unsupported`() {
         val provider = object : ContentProvider() {
             override fun onCreate(): Boolean = true

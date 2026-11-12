@@ -20,6 +20,9 @@ class NativeAppsTest {
     private val application: Application = ApplicationProvider.getApplicationContext()
     private val context: Context = application
 
+    /** Discovery under test ignores signing certificates; trust has its own tests. */
+    private fun discover() = NativeApps.discover(context) { true }
+
     private fun addNativeApp(
         packageName: String,
         label: String,
@@ -35,7 +38,7 @@ class NativeAppsTest {
         addNativeApp("test.zeta", "Zeta", appId = "zeta", minSchema = 1, launchRoute = "home")
         addNativeApp("test.alpha", "Alpha", minSchema = 1)
 
-        val apps = NativeApps.discover(context)
+        val apps = discover()
 
         assertEquals(listOf("test.alpha", "test.zeta"), apps.map { it.packageName })
         assertEquals("native:test.alpha", apps[0].visibilityId)
@@ -50,7 +53,7 @@ class NativeAppsTest {
         addNativeApp("test.future", "Future", minSchema = SidekitContract.SCHEMA_VERSION + 1)
         addNativeApp("test.current", "Current", minSchema = SidekitContract.SCHEMA_VERSION)
 
-        assertEquals(listOf("test.current"), NativeApps.discover(context).map { it.packageName })
+        assertEquals(listOf("test.current"), discover().map { it.packageName })
     }
 
     @Test
@@ -58,7 +61,7 @@ class NativeAppsTest {
         addNativeApp("test.string", "String", minSchemaString = "1")
         addNativeApp("test.future", "Future", minSchemaString = (SidekitContract.SCHEMA_VERSION + 1).toString())
 
-        val apps = NativeApps.discover(context)
+        val apps = discover()
 
         assertEquals(listOf("test.string"), apps.map { it.packageName })
         assertEquals(1, apps.single().minSchema)
@@ -70,7 +73,36 @@ class NativeAppsTest {
         addNativeApp("test.twice", "Twice", activityName = "test.twice.First")
         addNativeApp("test.twice", "Twice again", activityName = "test.twice.Second")
 
-        assertEquals(listOf("test.twice"), NativeApps.discover(context).map { it.packageName })
+        assertEquals(listOf("test.twice"), discover().map { it.packageName })
+    }
+
+    @Test
+    fun `an app that is not signed by a trusted certificate gets no tile`() {
+        addNativeApp("test.trusted", "Trusted")
+        addNativeApp("test.untrusted", "Untrusted")
+
+        val apps = NativeApps.discover(context) { it == "test.trusted" }
+
+        assertEquals(listOf("test.trusted"), apps.map { it.packageName })
+    }
+
+    @Test
+    fun `an app cannot claim a built-in id`() {
+        addNativeApp("test.spoof", "Spoof", appId = "builtin:Mail")
+        addNativeApp("test.real", "Real")
+
+        assertEquals(listOf("test.real"), discover().map { it.packageName })
+    }
+
+    @Test
+    fun `one entry per app id, in label order`() {
+        addNativeApp("test.aaa", "Zeta", appId = "shared")
+        addNativeApp("test.bbb", "Alpha", appId = "shared")
+
+        val apps = discover()
+
+        assertEquals(listOf("test.bbb"), apps.map { it.packageName })
+        assertEquals("shared", apps.single().appId)
     }
 
     @Test

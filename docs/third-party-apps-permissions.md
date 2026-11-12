@@ -50,6 +50,39 @@ Scoping the name to the application id removes the shared definition entirely; e
 own permission and checks its own (`SidekitConfigProvider.callerCanRead`). The stable name is
 unchanged, so clients built against the contract keep working.
 
+## Who may read it
+
+Holding the permission is necessary but not sufficient. `normal` is granted to any app that asks
+for it, so it records intent, not identity — the actual decision is the caller's **signing
+certificate** (`TrustedCallers`):
+
+- an APK signed with Sidekit's own certificate is first-party and trusted;
+- any other app is trusted only when the SHA-256 digest of its signing certificate is listed in
+  `app/src/main/res/values/trusted_apps.xml`;
+- nothing else is trusted, whatever it declares in its manifest.
+
+```xml
+<string-array name="sidekit_trusted_app_digests">
+    <item>B8:29:49:FE:…</item>
+</string-array>
+```
+
+Digests come from `apksigner verify -print-certs app-release.apk`; colons are optional. A debug
+certificate must never be listed — the debug keystore is public, so an entry would trust anyone.
+
+The same policy decides which apps may appear as Sidekit-native launcher tiles, so an app cannot
+take a place on the home screen just by advertising `ACTION_NATIVE_APP`. A native app also cannot
+claim a `builtin:` app id, and two apps claiming the same id collapse to one tile.
+
+Adding an app is one line in the resource and a Sidekit release; there is no runtime approval flow
+by design. A refused app sees `HostStatus.NotPermitted` (the host advertises
+`SidekitContract.CAPABILITY_TRUST`) and keeps working on its own local settings, so a client can
+tell "ask the Sidekit author to trust this build" apart from "no Sidekit here".
+
+Verified on the Sidephone with the dev host: a debug-signed client reads the host, the same client
+re-signed with another key reports `NotPermitted`, and adding that certificate to the resource
+makes it readable again.
+
 ## Why the definition does not live in the SDK
 
 Android allows a `normal` permission to be declared by exactly one installed package. When the SDK

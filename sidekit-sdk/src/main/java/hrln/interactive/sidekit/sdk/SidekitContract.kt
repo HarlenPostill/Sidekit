@@ -53,8 +53,17 @@ object SidekitContract {
     const val CAPABILITY_KEYPAD = "keypad"
     const val CAPABILITY_INPUT = "input"
 
+    /**
+     * The host decides who may read by signing certificate, not only by the read permission.
+     *
+     * A host that advertises this answers `SecurityException` to an app it does not trust, which a
+     * client sees as [SidekitConfigClient.HostStatus.NotPermitted]. Trust is granted by the host's
+     * author (a bundled certificate list), so an app that needs it has to ask to be added.
+     */
+    const val CAPABILITY_TRUST = "trust"
+
     /** Capabilities every provider built against this contract offers. */
-    val CAPABILITIES: List<String> = listOf(CAPABILITY_THEME, CAPABILITY_KEYPAD, CAPABILITY_INPUT)
+    val CAPABILITIES: List<String> = listOf(CAPABILITY_THEME, CAPABILITY_KEYPAD, CAPABILITY_INPUT, CAPABILITY_TRUST)
 
     /**
      * The configuration authority of the Sidekit build whose package is [packageName].

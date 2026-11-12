@@ -27,6 +27,9 @@ import hrln.interactive.sidekit.sdk.input.SharedPreferencesKeypadPreferences
  *
  * Only the keys listed in [SidekitConfigCodec] leave the process. Hidden apps, home order,
  * credentials, messages and the other app-private stores are never read here.
+ *
+ * Holding the permission is not enough: the caller's signing certificate must also be trusted
+ * (see [TrustedCallers]), because a `normal` permission is granted to any app that requests it.
  */
 // The provider is the host side of the SDK's internal wire format; the codec and file names are
 // restricted so third-party apps cannot depend on them.
@@ -66,17 +69,20 @@ open class SidekitConfigProvider : ContentProvider() {
     }
 
     /**
-     * Whether the current caller holds the read permission.
+     * Whether the current caller holds the read permission *and* is signed by a trusted
+     * certificate.
      *
      * `readPermission` guards normal provider access, but it does not automatically guard [call].
      * The permission is named after this build's package, so the stable and dev builds each
-     * declare and check their own. This hook is open so tests can exercise both outcomes without a
-     * second installed app.
+     * declare and check their own. The certificate check is what actually limits access: any app
+     * can request a `normal` permission. This hook is open so tests can exercise both outcomes
+     * without a second installed app.
      */
     internal open fun callerCanRead(): Boolean {
         val context = context ?: return false
         val permission = SidekitContract.readPermissionForPackage(context.packageName)
-        return context.checkCallingPermission(permission) == PackageManager.PERMISSION_GRANTED
+        if (context.checkCallingPermission(permission) != PackageManager.PERMISSION_GRANTED) return false
+        return TrustedCallers.isTrustedCaller(context)
     }
 
     private fun readConfig(): SidekitConfig {
