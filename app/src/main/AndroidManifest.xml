@@ -2,6 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+        Read access to Sidekit's theme and keypad configuration. Defined here, next to the provider
+        that uses it, and requested by sidekit-sdk, so a consumer app merges only the request:
+        a normal permission can be declared by one installed package, and a declaration in the
+        SDK would make a differently signed client fail to install beside Sidekit.
+    -->
+    <permission
+        android:name="hrln.interactive.sidekit.permission.READ_APP_CONFIG"
+        android:protectionLevel="normal" />
+
     <!-- Sidemessage: read, send and (as the default SMS app) receive texts. -->
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
