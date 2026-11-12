@@ -2,7 +2,6 @@ package hrln.interactive.sidekit.design.input
 
 import android.content.Context
 import android.view.KeyEvent
-import android.view.ViewConfiguration
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,7 +25,7 @@ enum class KeypadModule(val label: String, val typesOnKeypad: Boolean) {
     /** Two letters per key, 20 keys. */
     Qwerty("Mini QWERTY", true),
 
-    /** Click wheel with a centre button. */
+    /** Ring of eight keys with a centre button. */
     Sundial("Sundial", false),
 
     /** D-pad, A / B / X / Y and a shoulder key. */
@@ -53,7 +52,7 @@ class Keypad internal constructor(
     private val scope: CoroutineScope,
     private val loadWords: (suspend () -> T9Words)?,
     initialModule: KeypadModule,
-    val longPressMs: Long = DEFAULT_LONG_PRESS_MS,
+    val longPressMs: Long = KeypadTiming.LONG_PRESS_MS,
     /** Custom key mapping (off unless the user turns it on in Settings). */
     val mapper: KeyMapper = KeyMapper.forTesting()
 ) {
@@ -223,7 +222,6 @@ class Keypad internal constructor(
 
     companion object {
         private const val SAVE_DELAY_MS = 2_000L
-        private const val DEFAULT_LONG_PRESS_MS = 450L
 
         fun isTypingKey(code: Int) = code in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 ||
             code == KeyEvent.KEYCODE_STAR || code == KeyEvent.KEYCODE_POUND || code == KeyEvent.KEYCODE_DEL ||
@@ -243,7 +241,7 @@ class Keypad internal constructor(
                 initialModule = preferences.module()
                     // Before modules were told apart, T9 was the only one that typed.
                     ?: if (preferences.legacyT9()) KeypadModule.T9 else KeypadModule.Sundial,
-                longPressMs = ViewConfiguration.getLongPressTimeout().toLong(),
+                longPressMs = KeypadTiming.LONG_PRESS_MS,
                 mapper = KeyMapper.create(preferences)
             )
         }

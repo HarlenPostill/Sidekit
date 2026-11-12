@@ -16,6 +16,12 @@ import hrln.interactive.sidekit.navigation.SidekitNavHost
 import hrln.interactive.sidekit.onboarding.OnboardingScreen
 import hrln.interactive.sidekit.sdk.app.SidekitActivity
 
+/**
+ * Sidekit itself, on the shared SDK shell.
+ *
+ * The theme, canvas, keypad and key loop live in [SidekitActivity]; this class keeps only what is
+ * Sidekit's own: the home intent, the message/projection links and the screens to show.
+ */
 class MainActivity : SidekitActivity() {
     /** Bumped when Home is pressed while SideKit is already in front; the nav host returns to the launcher. */
     private val homeRequests = mutableIntStateOf(0)

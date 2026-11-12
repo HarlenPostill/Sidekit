@@ -45,7 +45,14 @@ abstract class SidekitActivity : ComponentActivity() {
     /** The swappable keypad. T9 typing and its dictionary only load once T9 is actually used. */
     protected val keypad: Keypad by lazy { Keypad.create(this, lifecycleScope, keypadPreferences) }
 
-    private val input by lazy { SidekitInputController(keypad, chrome) }
+    private val input by lazy {
+        SidekitInputController(
+            keypad = keypad,
+            chrome = chrome,
+            dispatch = { event -> super.dispatchKeyEvent(event) },
+            onBack = { onBackPressedDispatcher.onBackPressed() }
+        )
+    }
 
     final override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,11 +89,16 @@ abstract class SidekitActivity : ComponentActivity() {
         onSidekitResume(keypad)
     }
 
+    final override fun onPause() {
+        input.reset()
+        super.onPause()
+    }
+
     // Overriding dispatchKeyEvent is the only way to see a keypad event before Compose or the
     // system consumes it; lint flags the override because ComponentActivity marks it @RestrictTo.
     @SuppressLint("RestrictedApi")
     final override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        val handled = input.handle(event) ?: return true
-        return super.dispatchKeyEvent(handled)
+        if (input.handle(event)) return true
+        return super.dispatchKeyEvent(event)
     }
 }

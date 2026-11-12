@@ -78,6 +78,8 @@ fun SidekitItem(
     title: String,
     modifier: Modifier = Modifier,
     secondary: String? = null,
+    /** Put the secondary value at the row's trailing edge (toggles and compact state rows). */
+    secondaryToEnd: Boolean = false,
     icon: SidekitIcon? = null,
     showLinkArrow: Boolean = false,
     colour: ItemColour = ItemColour.Primary,
@@ -100,9 +102,19 @@ fun SidekitItem(
             if (icon != null) SidekitIconImage(icon)
             SidekitText(title, textDecoration = titleDecoration)
             if (secondary != null) {
-                SidekitText(secondary, Modifier.weight(1f), color = SidekitTheme.colors.surfaceA6)
-            } else if (showLinkArrow) {
-                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                SidekitText(
+                    secondary,
+                    Modifier.weight(1f),
+                    color = SidekitTheme.colors.surfaceA6,
+                    textAlign = if (secondaryToEnd) TextAlign.End else null
+                )
+            }
+            // The arrow marks a row that opens another page, whether or not it also shows a value.
+            if (showLinkArrow) {
+                Box(
+                    if (secondary == null) Modifier.weight(1f) else Modifier,
+                    contentAlignment = Alignment.CenterEnd
+                ) {
                     SidekitIconImage(SidekitIcon.ArrowRightAlt)
                 }
             }

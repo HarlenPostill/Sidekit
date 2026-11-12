@@ -13,6 +13,7 @@ import org.robolectric.Shadows.shadowOf
 @RunWith(RobolectricTestRunner::class)
 class ClockAlarmsTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
+
     @Test fun `enabled alarm is registered as system alarm clock and delete cancels it`() {
         val manager = context.getSystemService(AlarmManager::class.java)
         org.robolectric.shadows.ShadowAlarmManager.setCanScheduleExactAlarms(true)
@@ -24,6 +25,7 @@ class ClockAlarmsTest {
         alarms.reconcile(data, ClockData())
         assertNull(manager.nextAlarmClock)
     }
+
     @Test fun `scheduled alarm carries the fire action`() {
         val manager = context.getSystemService(AlarmManager::class.java)
         org.robolectric.shadows.ShadowAlarmManager.setCanScheduleExactAlarms(true)
@@ -39,6 +41,7 @@ class ClockAlarmsTest {
         assertEquals(1, shadowOf(manager).scheduledAlarms.size)
         assertNull(manager.nextAlarmClock)
     }
+
     @Test fun `ringing notification has full screen and snooze dismiss actions and is cancelled`() {
         val alarms = ClockAlarms(context)
         val ring = Ringing("test", "Alarm", System.currentTimeMillis())
