@@ -1,5 +1,6 @@
 package hrln.interactive.sidekit.apps.translate
 
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -12,11 +13,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
-import java.io.IOException
 
 private class MemoryTranslationStore(var saved: List<Translation> = emptyList()) : TranslationStore {
     override fun read() = saved
-    override fun write(history: List<Translation>) { saved = history }
+    override fun write(history: List<Translation>) {
+        saved = history
+    }
 }
 
 private class FakeTranslator(private val failure: Boolean = false) : Translator {
@@ -85,5 +87,49 @@ class TranslateViewModelTest {
         vm.open(repository.history.value!!.first())
         assertEquals("English", vm.state.value.source.language)
         assertEquals("One", vm.state.value.source.text)
+    }
+
+    @Test fun `tapping a language opens the list and choosing one sets that side`() {
+        val vm = TranslateViewModel(repository, FakeTranslator())
+        vm.pickLanguage(TranslateSide.Target)
+        assertEquals(TranslateMode.Language, vm.state.value.mode)
+        assertEquals(TranslateSide.Target, vm.state.value.picking)
+        vm.chooseLanguage(TranslateLanguage.Spanish)
+        assertEquals(TranslateMode.Translate, vm.state.value.mode)
+        assertEquals("English", vm.state.value.source.language)
+        assertEquals("Spanish", vm.state.value.target.language)
+        vm.setText("Hello")
+        vm.translate()
+        scope.testScheduler.runCurrent()
+        assertEquals("Hello [en->es]", vm.state.value.target.text)
+    }
+
+    @Test fun `any language can be reached directly, not only Chinese`() {
+        val vm = TranslateViewModel(repository, FakeTranslator())
+        TranslateLanguage.entries.filter { it != TranslateLanguage.English }.forEach { language ->
+            vm.pickLanguage(TranslateSide.Target)
+            vm.chooseLanguage(language)
+            assertEquals(language.label, vm.state.value.target.language)
+            assertEquals("English", vm.state.value.source.language)
+        }
+    }
+
+    @Test fun `choosing the other side's language swaps the pair`() {
+        val vm = TranslateViewModel(repository, FakeTranslator())
+        vm.pickLanguage(TranslateSide.Source)
+        vm.chooseLanguage(TranslateLanguage.Chinese)
+        assertEquals("Chinese", vm.state.value.source.language)
+        assertEquals("English", vm.state.value.target.language)
+    }
+
+    @Test fun `changing the target redoes an existing translation`() {
+        val vm = TranslateViewModel(repository, FakeTranslator())
+        vm.setText("Hi")
+        vm.translate()
+        scope.testScheduler.runCurrent()
+        vm.pickLanguage(TranslateSide.Target)
+        vm.chooseLanguage(TranslateLanguage.French)
+        scope.testScheduler.runCurrent()
+        assertEquals("Hi [en->fr]", vm.state.value.target.text)
     }
 }
