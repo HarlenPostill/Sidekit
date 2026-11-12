@@ -98,9 +98,14 @@ abstract class SidekitActivity : ComponentActivity() {
     // system consumes it; lint flags both the override and the super call because ComponentActivity
     // marks them @RestrictTo.
     @SuppressLint("RestrictedApi")
-    final override fun dispatchKeyEvent(event: KeyEvent): Boolean = input.handle(event) || dispatchToPlatform(event)
+    final override fun dispatchKeyEvent(event: KeyEvent): Boolean = input.handle(event)
 
-    /** The platform path for a key Sidekit did not consume; also used by the Sundial holds. */
+    /**
+     * The platform path for a key Sidekit did not consume; also used by the Sundial holds.
+     *
+     * [SidekitInputController.handle] already ends here for an unhandled key, so the override must
+     * not dispatch it a second time as well.
+     */
     @SuppressLint("RestrictedApi")
     private fun dispatchToPlatform(event: KeyEvent): Boolean = super.dispatchKeyEvent(event)
 }

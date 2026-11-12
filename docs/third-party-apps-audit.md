@@ -124,8 +124,14 @@ no `tools:node="remove"` workaround. See
 
 - `:sidekit-sdk:compileDebugKotlin`, `:app:compileDebugKotlin` and `:sample-app:compileDebugKotlin` pass.
 - Full unit suites for `:app`, `:sidekit-sdk` and `:sidekit` pass.
-- `:sample-app:compileDebugAndroidTestKotlin` and `:permission-test-app:assembleDebugAndroidTest`
-  pass; both separate-APK tests are ready for a device.
+- Both separate-APK instrumentation tests pass on an API 37 emulator with the debug Sidekit
+  installed: `:sample-app:connectedDebugAndroidTest` reads the host configuration from another
+  package, and `:permission-test-app:connectedDebugAndroidTest` gets the expected
+  `SecurityException` from the provider. The host is the only package that defines
+  `READ_APP_CONFIG` (`dumpsys package permissions`), and the sample is granted it at install.
+- The launcher and onboarding run on the SDK shell in that build: the case colour picked in
+  onboarding recolours the home screen through the SDK theme store, and one D-pad press moves
+  focus one row.
 - `spotlessCheck` passes.
 - `:app:lintDebug`, `:sidekit:lintDebug`, `:sidekit-sdk:lintDebug`, `:sample-app:lintDebug` and
   `:permission-test-app:lintDebug` pass.
