@@ -189,11 +189,9 @@ internal fun ClockScreen(onEdit: (String) -> Unit, repository: ClockRepository? 
                 item { SidekitItemRow(Modifier.listFade(list, 0)) { listOf("Alarms", "Timer", "Stopwatch").forEach { name -> SidekitTile(Modifier.weight(1f), onClick = { tab = name }) { SidekitText(name, style = hrln.interactive.sidekit.design.theme.SidekitTheme.typography.caption) } } } }
                 if (error != null || inputError != null) item { SidekitItem(error ?: inputError.orEmpty(), Modifier.listFade(list, 1)) }
                 if (tab != "Stopwatch" && (!exact || !notifications || !fullscreen)) item { SidekitItem("Review alarm access", Modifier.listFade(list, 2), onClick = { permissionPage = true }) }
-                if (data == null) {
-                    item { SidekitItem("Loading…") }
-                } else {
-                    when (tab) {
-                        "Alarms" -> {
+                if (data == null) item { SidekitItem("Loading…") }
+                else when (tab) {
+                    "Alarms" -> {
                             val visible = current.alarms
                             if (visible.isEmpty()) item { SidekitItem("No alarms yet", Modifier.listFade(list, 3)) }
                             visible.forEachIndexed { index, alarm ->
@@ -203,8 +201,7 @@ internal fun ClockScreen(onEdit: (String) -> Unit, repository: ClockRepository? 
                                     }
                                 }
                             }
-                        } }
-                    }
+                        }
                     "Timer" -> {
                         item { SidekitItem(durationText(current.timer.remainingAt(now, elapsed)), Modifier.listFade(list, 3)) }
                         if (current.timer.endAt == null && current.timer.remaining == 0L) item { SidekitCard(Modifier.listFade(list, 4).fillMaxWidth()) {
@@ -244,29 +241,10 @@ private fun ClockEditor(id: String, onClose: () -> Unit) {
         repo.save((original ?: ClockAlarm()).copy(hour = parsed.hour, minute = parsed.minute, days = selected, enabled = enabled))
         onClose()
     }
-<<<<<<< HEAD
     SidekitScaffold(focusParking = focus, title = if (id == "new") "New alarm" else "Edit alarm",
         actions = if (deleting) listOf(SideAction.cancel("cancel") { deleting = false }, SideAction.delete("main", icon = SidekitIcon.DeleteForever) { repo.deleteWithUndo(id); onClose() })
         else listOf(SideAction.cancel("cancel", onClick = onClose), SideAction.save("main", onClick = ::save)),
         options = if (id == "new") emptyList() else listOf(SideAction.delete("delete", icon = SidekitIcon.DeleteForever) { deleting = true })) { padding ->
-=======
-    SidekitScaffold(
-        modifier = Modifier.focusRequester(focus).focusable(),
-        title = if (id == "new") "New alarm" else "Edit alarm",
-        actions = if (deleting) {
-            listOf(
-                SideAction.cancel("cancel") { deleting = false },
-                SideAction.delete("main", icon = SidekitIcon.DeleteForever) {
-                    repo.deleteWithUndo(id)
-                    onClose()
-                }
-            )
-        } else {
-            listOf(SideAction.cancel("cancel", onClick = onClose), SideAction.save("main", onClick = ::save))
-        },
-        options = if (id == "new") emptyList() else listOf(SideAction.delete("delete", icon = SidekitIcon.DeleteForever) { deleting = true })
-    ) { padding ->
->>>>>>> 2d7a116 (Time Undo in visible seconds and keep it to its screen)
         val list = rememberLazyListState()
         SidekitList(padding, state = list) {
             item { SidekitCard(Modifier.listFade(list, 0).fillMaxWidth()) { SidekitTextField(time, { time = it }, placeholder = "HH:mm", singleLine = true, dictation = false, focusOnKeypad = true, autoFocus = id == "new", onDone = { focus.requestFocus() }) } }
