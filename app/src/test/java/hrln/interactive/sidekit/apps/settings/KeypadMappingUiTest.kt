@@ -13,6 +13,8 @@ import hrln.interactive.sidekit.design.action.ChromeState
 import hrln.interactive.sidekit.design.canvas.SidekitCanvas
 import hrln.interactive.sidekit.design.input.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
+import hrln.interactive.sidekit.sdk.input.SharedPreferencesKeypadPreferences
+import hrln.interactive.sidekit.sdk.settings.*
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
@@ -37,7 +39,7 @@ class KeypadMappingUiTest {
     private fun show(module: KeypadModule = KeypadModule.T9, content: @Composable () -> Unit) {
         compose.setContent {
             val scope = rememberCoroutineScope()
-            keypad = remember { Keypad.forTesting(scope, T9Words.Empty, module, KeyMapper.forTesting(prefs) { if (it.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD) "Virtual" else "Test keypad" }) }
+            keypad = remember { Keypad.forTesting(scope, T9Words.Empty, module, KeyMapper.forTesting(SharedPreferencesKeypadPreferences(context, "keypad_mapping_ui_test")) { if (it.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD) "Virtual" else "Test keypad" }) }
             SidekitTheme { SidekitCanvas(keypad = keypad, chrome = chrome) { content() } }
         }
         compose.mainClock.advanceTimeBy(1000)

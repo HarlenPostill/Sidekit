@@ -9,8 +9,10 @@ Gradle cache setup in [`.github/actions/android-setup`](../.github/actions/andro
 | Job | Command | Catches |
 | --- | --- | --- |
 | Gradle wrapper validation | `gradle/actions/wrapper-validation` | A modified or unverified `gradle-wrapper.jar` |
-| Build | `./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug` | Compile errors and R8/keep-rule breakage that only release builds show |
-| Unit tests | `./gradlew testDebugUnitTest` | JVM, Robolectric and Compose tests in both modules |
+| Build | `./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug :sidekit-sdk:assembleDebug :sample-app:assembleDebug :permission-test-app:assembleDebug :permission-test-app:assembleDebugAndroidTest` | Compile errors and R8/keep-rule breakage that only release builds show |
+| Published SDK consumer | publish to `build/pages-repo`, then `:sample-app:assembleDebug -PsidekitUsePublished=true` | Missing POM dependencies, broken transitive `sidekit-design` resolution, consumer rules and the artifact host itself |
+| Publish SDK | tag `v*` or manual dispatch, then publish to GitHub Pages | Release artifacts and POM metadata |
+| Unit tests | `./gradlew testDebugUnitTest` | JVM, Robolectric and Compose tests in every module |
 | Android Lint | `./gradlew lintDebug` | API-level, manifest and resource problems; uploads SARIF to code scanning |
 | Kotlin formatting | `./gradlew spotlessCheck` | ktlint violations in files changed since `main` |
 | Secret scan | `gitleaks/gitleaks-action` | Committed credentials, private keys and tokens |
@@ -18,11 +20,58 @@ Gradle cache setup in [`.github/actions/android-setup`](../.github/actions/andro
 | CodeQL | manual Gradle build + `codeql-action` | Security data-flow issues in Kotlin and Java (`codeql.yml`) |
 | Dependency graph | `gradle/actions/dependency-submission` | Keeps the graph that dependency review reads up to date (`dependency-graph.yml`) |
 
-These checks gate pull requests. The repository does not run instrumented tests on
-an emulator: the only `androidTest` source today is the generated example, and the
-[PR template](../.github/pull_request_template.md) already requires physical-device
-testing for app changes. Add a `connectedDebugAndroidTest` job once real
-instrumentation tests exist.
+These checks gate pull requests. The repository does not run instrumented tests on an emulator:
+the two real ones (`:sample-app` and `:permission-test-app`) need Sidekit installed beside them on
+the same device to exercise the exported configuration provider and its cross-UID permission
+boundary, and the [PR template](../.github/pull_request_template.md) already requires
+physical-device testing for app changes. Run them by hand against an installed debug Sidekit:
+
+```bash
+./gradlew :app:installDebug
+./gradlew :sample-app:connectedDebugAndroidTest :permission-test-app:connectedDebugAndroidTest
+```
+
+Add a `connectedDebugAndroidTest` job once an emulator setup that installs all three APKs exists.
+
+## Publishing
+
+`:sidekit` and `:sidekit-sdk` are publishable libraries. Version metadata comes from git tags
+through the `sidekit.version` and `sidekit.publish` convention plugins in
+[`build-logic`](../build-logic). The convention plugin configures a local staging repository at
+`build/local-repo` for quick checks, and stages the published layout at `build/pages-repo` when
+`-PsidekitPublishPages=true` is set.
+
+```bash
+./gradlew :sidekit:publishAllPublicationsToSidekitPagesRepository \
+  :sidekit-sdk:publishAllPublicationsToSidekitPagesRepository -PsidekitPublishPages=true
+./gradlew :sample-app:assembleDebug -PsidekitUsePublished=true
+```
+
+`:sample-app` uses the project dependency by default. The `Published SDK consumer` CI job stages
+the Pages layout and rebuilds the sample with `-PsidekitUsePublished=true`, which exercises the
+POM, the transitive `sidekit-design` dependency, the consumer rules and the exact tree that is
+served to third-party apps (`settings.gradle.kts` lists `build/pages-repo` as a repository).
+
+The `Publish SDK` workflow runs on `v*` tags (or manually), stages the same tree and pushes it into
+the `gh-pages` branch, which GitHub Pages serves as a static Maven repository. Nothing is
+uploaded to a package registry, so consumers need no credentials:
+
+```kotlin
+repositories {
+    google()
+    mavenCentral()
+    maven("https://harlenpostill.github.io/Sidekit/maven")
+}
+
+dependencies {
+    implementation("hrln.interactive.sidekit:sidekit-sdk:<version>")
+}
+```
+
+The workflow keeps older versions in `gh-pages` (consumers pin versions) and writes `.nojekyll`, so
+Pages serves the files untouched. Enable it once in the repository settings: **Settings → Pages →
+Deploy from a branch → `gh-pages` / root**. The site URL is
+`https://<owner>.github.io/Sidekit/maven/`.
 
 ## Formatting
 
@@ -55,13 +104,14 @@ ref.
 ## Running the pipeline locally
 
 ```bash
-./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug
+./gradlew :app:assembleDebug :app:assembleRelease :sidekit:assembleDebug :sidekit-sdk:assembleDebug :sample-app:assembleDebug :permission-test-app:assembleDebug :permission-test-app:assembleDebugAndroidTest
 ./gradlew testDebugUnitTest
 ./gradlew lintDebug
 ./gradlew spotlessCheck
 ```
 
-Reports are written to `app/build/reports/` and `sidekit/build/reports/`.
+Reports are written to `app/build/reports/`, `sidekit/build/reports/`, `sidekit-sdk/build/reports/`
+and `sample-app/build/reports/`.
 
 ## Branch protection
 

@@ -40,6 +40,7 @@ import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.design.theme.drawFocusRing
 import hrln.interactive.sidekit.home.HomeArranger
 import hrln.interactive.sidekit.home.HomePreferences
+import hrln.interactive.sidekit.launcher.rememberNativeApps
 import hrln.interactive.sidekit.navigation.SubApp
 
 /**
@@ -60,9 +61,11 @@ internal fun ArrangeHomeScreen(back: () -> Unit) {
     val prefs = remember(context) { SidekitPreferences(context) }
     val hidden = rememberHiddenApps(prefs)
     val ported by remember { PortedApps.get(context).apps }.collectAsStateWithLifecycle()
+    val native = rememberNativeApps()
     val subsById = remember(SubApp.entries) { SubApp.entries.associateBy { it.visibilityId() } }
     val portedById = remember(ported) { ported.associateBy { it.visibilityId() } }
-    val known = remember(subsById, portedById, hidden) { (subsById.keys + portedById.keys) - hidden }
+    val nativeById = remember(native) { native.associateBy { it.visibilityId } }
+    val known = remember(subsById, portedById, nativeById, hidden) { (subsById.keys + portedById.keys + nativeById.keys) - hidden }
     // Editing buffer, seeded from the stored prefs once. Nothing is written until commit() (Done).
     val arranger = remember(home, known) { HomeArranger(home, known) }
     val order = arranger.order
@@ -188,7 +191,7 @@ internal fun ArrangeHomeScreen(back: () -> Unit) {
             item { ArrangeHint() }
             val last = order.lastIndex
             itemsIndexed(order, key = { _, id -> id }) { index, id ->
-                val label = subsById[id]?.label ?: portedById[id]?.label ?: return@itemsIndexed
+                val label = subsById[id]?.label ?: portedById[id]?.label ?: nativeById[id]?.label ?: return@itemsIndexed
                 val enabledUp = index > 0
                 val enabledDown = index < last
                 val isSelected = arranger.isSelected(id)
