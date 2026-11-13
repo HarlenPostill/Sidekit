@@ -11,16 +11,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -32,6 +30,7 @@ import hrln.interactive.sidekit.apps.phonebook.PhoneFormat
 import hrln.interactive.sidekit.design.action.ActionMotion
 import hrln.interactive.sidekit.design.action.ActionTone
 import hrln.interactive.sidekit.design.action.SideAction
+import hrln.interactive.sidekit.design.action.undoBar
 import hrln.interactive.sidekit.design.components.ItemColour
 import hrln.interactive.sidekit.design.components.SidekitCard
 import hrln.interactive.sidekit.design.components.SidekitItem
@@ -39,16 +38,18 @@ import hrln.interactive.sidekit.design.components.SidekitItemRow
 import hrln.interactive.sidekit.design.components.SidekitList
 import hrln.interactive.sidekit.design.components.SidekitScaffold
 import hrln.interactive.sidekit.design.components.SidekitSwipeRow
-import hrln.interactive.sidekit.design.components.rememberSwipeRevealGroup
 import hrln.interactive.sidekit.design.components.SidekitText
 import hrln.interactive.sidekit.design.components.SidekitTextField
 import hrln.interactive.sidekit.design.components.SidekitTile
 import hrln.interactive.sidekit.design.components.container
 import hrln.interactive.sidekit.design.components.listFade
+import hrln.interactive.sidekit.design.components.rememberSwipeRevealGroup
 import hrln.interactive.sidekit.design.icons.SidekitIcon
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.ui.SidekitPreviewFrame
 import hrln.interactive.sidekit.ui.SidephonePreview
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 
 object SidemessageTags {
     const val INBOX = "sidemessage_inbox"
@@ -73,19 +74,21 @@ fun SidemessageInboxScreen(
     onOpenPinned: (PinnedTile) -> Unit,
     onNewMessage: () -> Unit,
     contactsAllowed: Boolean = true,
-    onAllowContacts: () -> Unit = {},
+    onAllowContacts: () -> Unit = {}
 ) {
     val access = state.access
     val offerDefault = !access.isDefault && canBecomeDefault
     val actions = when {
         !access.canRead -> listOf(
             SideAction("left", "Allow", tone = ActionTone.Primary, motion = ActionMotion.Up, contentDescription = "Allow SMS", onClick = onAllow),
-            SideAction("new", "New", SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = "New Message", onClick = onNewMessage),
+            SideAction("new", "New", SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = "New Message", onClick = onNewMessage)
         )
+
         offerDefault -> listOf(
             SideAction("left", "Make default", tone = ActionTone.Muted, weight = 1.2f, motion = ActionMotion.Up, onClick = onMakeDefault),
-            SideAction("new", "New", SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = "New Message", onClick = onNewMessage),
+            SideAction("new", "New", SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = "New Message", onClick = onNewMessage)
         )
+
         else -> listOf(SideAction.forward("new", "New Message", onNewMessage))
     }
     SidekitScaffold(
@@ -93,8 +96,8 @@ fun SidemessageInboxScreen(
         actions = actions,
         options = listOfNotNull(
             if (offerDefault) SideAction("default", "Make default", onClick = onMakeDefault) else null,
-            if (!contactsAllowed) SideAction("contacts", "Allow contacts", onClick = onAllowContacts) else null,
-        ),
+            if (!contactsAllowed) SideAction("contacts", "Allow contacts", onClick = onAllowContacts) else null
+        )
     ) { padding ->
         val listState = rememberLazyListState()
         SidekitList(padding, Modifier.testTag(SidemessageTags.INBOX), state = listState) {
@@ -104,7 +107,7 @@ fun SidemessageInboxScreen(
                 item("permission") {
                     InfoCard(
                         "Allow text access to read conversations. To receive texts here, choose Make default in Options.",
-                        Modifier.listFade(listState, i),
+                        Modifier.listFade(listState, i)
                     )
                 }
             } else if (offerDefault) {
@@ -113,7 +116,7 @@ fun SidemessageInboxScreen(
                     InfoCard(
                         "Sidemessage isn't your default SMS app, so new texts go to your other app first and can't be marked read here. Reading and sending still work.",
                         Modifier.listFade(listState, i),
-                        onClick = onMakeDefault,
+                        onClick = onMakeDefault
                     )
                 }
             }
@@ -129,7 +132,7 @@ fun SidemessageInboxScreen(
                             SidekitTile(
                                 Modifier.weight(1f),
                                 color = if (tile.thread?.unread == true) ItemColour.Secondary.container() else ItemColour.Primary.container(),
-                                onClick = { onOpenPinned(tile) },
+                                onClick = { onOpenPinned(tile) }
                             ) {
                                 SidekitText(tile.name, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
                             }
@@ -148,7 +151,7 @@ fun SidemessageInboxScreen(
                     secondary = thread.snippet,
                     colour = if (thread.unread) ItemColour.Secondary else ItemColour.Primary,
                     modifier = Modifier.listFade(listState, i + offset),
-                    onClick = { onOpen(thread) },
+                    onClick = { onOpen(thread) }
                 )
             }
         }
@@ -180,7 +183,7 @@ fun ConversationScreen(
     onAttach: (() -> Unit)? = null,
     attachmentNotice: String? = null,
     onDelete: (Message) -> Unit = {},
-    onUndoDelete: () -> Unit = {},
+    onUndoDelete: () -> Unit = {}
 ) {
     val draft = state.draft
     val actions = buildList {
@@ -192,18 +195,23 @@ fun ConversationScreen(
         }
         // As in Mail and Sideticks, Undo takes the primary action's place while a delete can be undone.
         // A draft already open keeps its Send action so typing isn't stranded.
-        when {
-            draft != null -> add(SideAction("compose", "Send", SidekitIcon.ArrowUpward, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = "Send message", onClick = onSend))
-            state.canUndo -> add(SideAction("undo", "Undo", SidekitIcon.Undo, tone = ActionTone.Muted, motion = ActionMotion.Up, onClick = onUndoDelete))
-            else -> add(SideAction("compose", "Text", SidekitIcon.ArrowUpward, iconAtEnd = true, motion = ActionMotion.Up, onClick = onStartTyping))
-        }
-        if (draft != null && state.canUndo) add(SideAction("undo", "Undo", SidekitIcon.Undo, tone = ActionTone.Muted, onClick = onUndoDelete))
+        addAll(
+            undoBar(
+                continueWith =
+                    if (draft != null) {
+                        SideAction("compose", "Send", SidekitIcon.ArrowUpward, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = "Send message", onClick = onSend)
+                    } else {
+                        SideAction("compose", "Text", SidekitIcon.ArrowUpward, iconAtEnd = true, motion = ActionMotion.Up, onClick = onStartTyping)
+                    },
+                undo = if (draft == null && state.canUndo) SideAction.undo(contentDescription = "Undo delete message", onClick = onUndoDelete) else null
+            )
+        )
     }
     val options = listOfNotNull(
         onAttach?.let { SideAction("attachment", "Attach MMS", onClick = it) },
         onTogglePin?.let { SideAction("pin", if (state.pinned) "Unpin" else "Pin", onClick = it) },
         onCall?.let { SideAction("call", "Call", SidekitIcon.Call, onClick = it) },
-        if (!state.access.isDefault && canBecomeDefault) SideAction("default", "Make default", onClick = onMakeDefault) else null,
+        if (!state.access.isDefault && canBecomeDefault) SideAction("default", "Make default", onClick = onMakeDefault) else null
     )
     SidekitScaffold(title = state.title, actions = actions, options = options) { padding ->
         Column(Modifier.fillMaxSize().padding(padding), verticalArrangement = Arrangement.spacedBy(SidekitTheme.spacing.itemOuterGap)) {
@@ -223,10 +231,12 @@ fun ConversationScreen(
             SidekitList(
                 contentPadding = PaddingValues(0.dp),
                 modifier = Modifier.weight(1f).testTag(SidemessageTags.CONVERSATION),
-                state = listState,
+                state = listState
             ) {
-                if (state.hasNewer) item("latest") {
-                    InfoCard("Back to latest messages", onClick = onLoadLatest)
+                if (state.hasNewer) {
+                    item("latest") {
+                        InfoCard("Back to latest messages", onClick = onLoadLatest)
+                    }
                 }
                 itemsIndexed(messages, key = { i, m -> m.key.ifEmpty { "i$i" } }, contentType = { _, m -> m.fromMe }) { i, message ->
                     val showStatus = message.fromMe && (i == newestMine || message.delivery == Delivery.Sending || message.delivery == Delivery.Failed)
@@ -240,15 +250,16 @@ fun ConversationScreen(
                         Bubble(message, showStatus, onRetry, fade)
                     }
                 }
-                if (state.hasMore) item("older") {
-                    InfoCard("Older messages", onClick = onLoadOlder)
+                if (state.hasMore) {
+                    item("older") {
+                        InfoCard("Older messages", onClick = onLoadOlder)
+                    }
                 }
             }
             if (draft != null) ComposeBox(draft, onDraftChange)
         }
     }
 }
-
 
 /** Received bubbles hug the left edge in surface grey; sent ones the right in primary-a2. Max width 400 (35:215). */
 @Composable
@@ -259,8 +270,12 @@ private fun Bubble(message: Message, showStatus: Boolean, onRetry: (Message) -> 
     var mmsNotice by remember { mutableStateOf<String?>(null) }
     fun retryMms() {
         scope.launch {
-            try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { MmsTransport.retry(context, android.net.Uri.parse(message.pendingMms)) }; mmsNotice = "Download requested" }
-            catch (_: Exception) { mmsNotice = "Could not retry MMS" }
+            try {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { MmsTransport.retry(context, android.net.Uri.parse(message.pendingMms)) }
+                mmsNotice = "Download requested"
+            } catch (_: Exception) {
+                mmsNotice = "Could not retry MMS"
+            }
         }
     }
     Column(modifier.fillMaxWidth(), horizontalAlignment = if (message.fromMe) Alignment.End else Alignment.Start) {
@@ -271,7 +286,13 @@ private fun Bubble(message: Message, showStatus: Boolean, onRetry: (Message) -> 
                 message.fromMe -> ItemColour.Secondary.container()
                 else -> ItemColour.Primary.container()
             },
-            onClick = if (message.pendingMms != null) ({ retryMms() }) else if (failed) ({ onRetry(message) }) else null,
+            onClick = if (message.pendingMms != null) {
+                ({ retryMms() })
+            } else if (failed) {
+                ({ onRetry(message) })
+            } else {
+                null
+            }
         ) {
             Column {
                 SidekitText(mmsNotice ?: message.text, maxLines = Int.MAX_VALUE)
@@ -289,7 +310,7 @@ private fun Bubble(message: Message, showStatus: Boolean, onRetry: (Message) -> 
                 },
                 style = SidekitTheme.typography.small,
                 color = if (failed) SidekitTheme.colors.dangerA3 else SidekitTheme.colors.surfaceA6,
-                modifier = Modifier.padding(horizontal = SidekitTheme.spacing.itemPadding, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = SidekitTheme.spacing.itemPadding, vertical = 4.dp)
             )
         }
     }
@@ -306,7 +327,7 @@ private fun ComposeBox(text: String, onChange: (String) -> Unit) {
             modifier = Modifier.fillMaxSize(),
             focusRequester = focus,
             focusOnKeypad = true,
-            autoFocus = true,
+            autoFocus = true
         )
     }
 }
@@ -322,7 +343,7 @@ fun NewMessageScreen(
     onQuery: (String) -> Unit,
     onPick: (String) -> Unit,
     onBack: () -> Unit,
-    onAllowContacts: () -> Unit,
+    onAllowContacts: () -> Unit
 ) {
     val number = state.number
     val actions = listOfNotNull(
@@ -331,7 +352,7 @@ fun NewMessageScreen(
             number != null -> SideAction("next", "Text", SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = "Text $number") { onPick(number) }
             !state.contactsAllowed -> SideAction("next", "Contacts", tone = ActionTone.Muted, motion = ActionMotion.Up, contentDescription = "Allow contacts", onClick = onAllowContacts)
             else -> null
-        },
+        }
     )
     SidekitScaffold(title = "New Message", actions = actions) { padding ->
         val listState = rememberLazyListState()
@@ -346,7 +367,7 @@ fun NewMessageScreen(
                         focusOnKeypad = true,
                         singleLine = true,
                         autoFocus = true,
-                        onDone = { number?.let(onPick) },
+                        onDone = { number?.let(onPick) }
                     )
                 }
             }
@@ -360,7 +381,7 @@ fun NewMessageScreen(
                         icon = SidekitIcon.Chat,
                         colour = ItemColour.Secondary,
                         modifier = Modifier.listFade(listState, i),
-                        onClick = { onPick(number) },
+                        onClick = { onPick(number) }
                     )
                 }
             }
@@ -386,7 +407,7 @@ private fun ContactRow(match: ContactMatch, region: String, modifier: Modifier, 
         title = match.contact.name,
         secondary = if (match.contact.numbers.size > 1 || match.number != null) PhoneFormat.format(number.number, region) else null,
         modifier = modifier,
-        onClick = { onPick(number.number) },
+        onClick = { onPick(number.number) }
     )
 }
 
@@ -408,8 +429,8 @@ object SidemessageSampleData {
         threads = listOf(
             t(3, "Josie", "Yeah should be all good"),
             t(4, "Ari", "Dont forget to go over to the"),
-            t(5, "Fio", "Its on sunday so come whenever"),
-        ),
+            t(5, "Fio", "Its on sunday so come whenever")
+        )
     )
 
     val conversation = ConversationUiState(
@@ -419,8 +440,8 @@ object SidemessageSampleData {
         messages = listOf(
             Message("Yeah i’ll come over soon", fromMe = true, date = 3, delivery = Delivery.Delivered, key = "s3"),
             Message("do u wanna do something later?", fromMe = false, date = 2, key = "s2"),
-            Message("Im free tn", fromMe = false, date = 1, key = "s1"),
-        ),
+            Message("Im free tn", fromMe = false, date = 1, key = "s1")
+        )
     )
 }
 

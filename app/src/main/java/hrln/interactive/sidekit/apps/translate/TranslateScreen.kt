@@ -33,9 +33,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
-import hrln.interactive.sidekit.design.action.ActionMotion
 import hrln.interactive.sidekit.design.action.ActionTone
 import hrln.interactive.sidekit.design.action.SideAction
+import hrln.interactive.sidekit.design.action.withNotice
 import hrln.interactive.sidekit.design.components.SidekitCard
 import hrln.interactive.sidekit.design.components.SidekitIconImage
 import hrln.interactive.sidekit.design.components.SidekitIconItem
@@ -55,45 +55,66 @@ import hrln.interactive.sidekit.navigation.SubApp
 import hrln.interactive.sidekit.ui.SidekitPreviewFrame
 import hrln.interactive.sidekit.ui.SidephonePreview
 
-object TranslateTags { const val INPUT = "translate_input" }
+object TranslateTags {
+    const val INPUT = "translate_input"
+}
 
 fun NavGraphBuilder.translateGraph(nav: NavHostController) {
     composable(SubApp.Translate.route) {
         val context = LocalContext.current.applicationContext
-        val vm: TranslateViewModel = viewModel(factory = remember(context) {
-            viewModelFactory { initializer { TranslateViewModel(Translate.repository(context), MyMemoryTranslator()) } }
-        })
+        val vm: TranslateViewModel = viewModel(
+            factory = remember(context) {
+                viewModelFactory { initializer { TranslateViewModel(Translate.repository(context), MyMemoryTranslator()) } }
+            }
+        )
         val state by vm.state.collectAsStateWithLifecycle()
         val history by vm.history.collectAsStateWithLifecycle()
         val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), vm::microphonePermissionResult)
         TranslateSpeechEffects(vm, state.talking, state.microphonePermissionNeeded, state.source.language, state.target.language)
         val baseActions = when (state.mode) {
             TranslateMode.Translate -> if (state.translating) {
-                listOf(SideAction("translate", "Cancel", tone = ActionTone.Muted, onClick = vm::cancelTranslation))
-            } else listOf(
-                SideAction.back("history", "History") { vm.show(TranslateMode.History) },
-                SideAction.forward("translate", "Translate", vm::translate),
-            )
+                listOf(SideAction.cancel("translate", onClick = vm::cancelTranslation))
+            } else {
+                listOf(
+                    SideAction.back("history", "History") { vm.show(TranslateMode.History) },
+                    SideAction.forward("translate", "Translate", vm::translate)
+                )
+            }
+
             TranslateMode.History, TranslateMode.Large -> listOf(SideAction.back("back", "Translate") { vm.show(TranslateMode.Translate) })
         }
         val actions = when {
-            state.error != null -> listOf(SideAction("notice", state.error!!, tone = ActionTone.Muted, dense = true, onClick = vm::dismissError))
+            state.error != null -> withNotice(state.error, vm::dismissError, emptyList())
+
             state.microphonePermissionNeeded -> listOf(
-                SideAction("cancel", "Cancel", tone = ActionTone.Muted) { vm.microphonePermissionResult(false) },
-                SideAction("allow", "Allow", tone = ActionTone.Secondary) { permission.launch(Manifest.permission.RECORD_AUDIO) },
+                SideAction.cancel("cancel") { vm.microphonePermissionResult(false) },
+                SideAction("allow", "Allow", tone = ActionTone.Secondary) { permission.launch(Manifest.permission.RECORD_AUDIO) }
             )
+
             else -> baseActions
         }
-        val options = if (state.mode == TranslateMode.Translate) listOf(
-            SideAction("source", "From: ${state.source.language}") { vm.nextLanguage(TranslateSide.Source) },
-            SideAction("target", "To: ${state.target.language}") { vm.nextLanguage(TranslateSide.Target) },
-            SideAction("swap", "Swap languages", SidekitIcon.Translate, onClick = vm::swapLanguages),
-            SideAction("large", "Large text", SidekitIcon.SmartDisplay) { vm.show(TranslateMode.Large) },
-            SideAction("clear", "Clear", SidekitIcon.Close, onClick = vm::clear),
-        ) else if (state.mode == TranslateMode.History && !history.isNullOrEmpty()) {
+        val options = if (state.mode == TranslateMode.Translate) {
+            listOf(
+                SideAction("source", "From: ${state.source.language}") { vm.nextLanguage(TranslateSide.Source) },
+                SideAction("target", "To: ${state.target.language}") { vm.nextLanguage(TranslateSide.Target) },
+                SideAction("swap", "Swap languages", SidekitIcon.Translate, onClick = vm::swapLanguages),
+                SideAction("large", "Large text", SidekitIcon.SmartDisplay) { vm.show(TranslateMode.Large) },
+                SideAction("clear", "Clear", SidekitIcon.Close, onClick = vm::clear)
+            )
+        } else if (state.mode == TranslateMode.History && !history.isNullOrEmpty()) {
             listOf(SideAction("clear", "Clear history", SidekitIcon.DeleteForever, tone = ActionTone.Destructive, onClick = vm::clearHistory))
-        } else emptyList()
-        SidekitScaffold(title = when (state.mode) { TranslateMode.Translate -> "Translate"; TranslateMode.History -> "Translations"; TranslateMode.Large -> state.target.language }, actions = actions, options = options) { padding ->
+        } else {
+            emptyList()
+        }
+        SidekitScaffold(
+            title = when (state.mode) {
+                TranslateMode.Translate -> "Translate"
+                TranslateMode.History -> "Translations"
+                TranslateMode.Large -> state.target.language
+            },
+            actions = actions,
+            options = options
+        ) { padding ->
             when (state.mode) {
                 TranslateMode.Translate -> TranslateBody(padding, state, vm::onMic, vm::setText, vm::speak)
                 TranslateMode.Large -> LargeTranslation(padding, state.target.text)
@@ -109,7 +130,7 @@ fun TranslateScreen(
     state: TranslateUiState,
     onMic: (TranslateSide) -> Unit,
     onText: (String) -> Unit = {},
-    onTranslate: () -> Unit = {},
+    onTranslate: () -> Unit = {}
 ) {
     SidekitScaffold(title = "Translate", actions = listOf(SideAction.forward("translate", "Translate", onTranslate))) { padding ->
         TranslateBody(padding, state, onMic, onText, { _, _ -> })
@@ -122,11 +143,11 @@ private fun TranslateBody(
     state: TranslateUiState,
     onMic: (TranslateSide) -> Unit,
     onText: (String) -> Unit,
-    onSpeak: (String, TranslateSide) -> Unit,
+    onSpeak: (String, TranslateSide) -> Unit
 ) {
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()).padding(padding),
-        verticalArrangement = Arrangement.spacedBy(SidekitTheme.spacing.itemOuterGap),
+        verticalArrangement = Arrangement.spacedBy(SidekitTheme.spacing.itemOuterGap)
     ) {
         TranslateSide.entries.forEach { side ->
             val pane = state.pane(side)
@@ -141,10 +162,12 @@ private fun TranslateBody(
                         focusOnKeypad = true,
                         autoFocus = true,
                         // Translate has its own mic, which listens in the chosen source language.
-                        dictation = false,
+                        dictation = false
                     )
                 }
-            } else TextRow(if (state.translating) "Translating…" else pane.text.ifEmpty { "Translation" })
+            } else {
+                TextRow(if (state.translating) "Translating…" else pane.text.ifEmpty { "Translation" })
+            }
         }
         if (state.microphonePermissionNeeded) {
             SidekitText("Allow the microphone so Translate can hear this language.", style = SidekitTheme.typography.caption, color = SidekitTheme.colors.surfaceA6, maxLines = Int.MAX_VALUE)
@@ -167,9 +190,9 @@ private fun LanguageRow(language: String, talking: Boolean, onMic: () -> Unit, o
             icon = if (talking) SidekitIcon.MicOff else SidekitIcon.Mic,
             contentDescription = if (talking) "Stop listening to $language" else "Speak $language",
             modifier = Modifier.size(SidekitTheme.spacing.itemHeight),
-            color = if (talking) colors.dangerA2 else colors.primaryA1,
+            color = if (talking) colors.dangerA2 else colors.emphasisA1,
             iconSize = 44.dp,
-            onClick = onMic,
+            onClick = onMic
         )
     }
 }
@@ -193,7 +216,7 @@ private fun TranslationHistory(
     padding: androidx.compose.foundation.layout.PaddingValues,
     history: List<Translation>,
     onOpen: (Translation) -> Unit,
-    onRemove: (Long) -> Unit,
+    onRemove: (Long) -> Unit
 ) {
     val listState = rememberLazyListState()
     val swipe = rememberSwipeRevealGroup()

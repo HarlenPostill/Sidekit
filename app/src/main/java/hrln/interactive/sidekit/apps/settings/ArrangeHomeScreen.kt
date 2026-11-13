@@ -139,18 +139,16 @@ internal fun ArrangeHomeScreen(back: () -> Unit) {
             SideAction("discard", "Discard", icon = SidekitIcon.Undo, tone = ActionTone.Destructive, motion = ActionMotion.Up, onClick = ::discard)
         )
     } else {
-        listOf(
-            SideAction.back("back", "Settings", ::requestBack),
-            SideAction.forward("done", "Done", ::done, icon = SidekitIcon.Check)
-        )
+        buildList {
+            add(SideAction.back("back", "Settings", ::requestBack))
+            // Reset is only useful while the buffer differs from the built-in default.
+            if (!arranger.isDefault) {
+                add(SideAction("reset", "Reset", icon = SidekitIcon.Undo, tone = ActionTone.Muted, onClick = { arranger.reset() }))
+            }
+            add(SideAction.forward("done", "Done", ::done, icon = SidekitIcon.Check))
+        }
     }
-    val options = if (confirmingDiscard) {
-        emptyList()
-    } else {
-        listOf(
-            SideAction("reset", "Reset", icon = SidekitIcon.Undo, tone = ActionTone.Muted, onClick = { arranger.reset() })
-        )
-    }
+    val options = emptyList<SideAction>()
     SidekitScaffold(
         "Arrange apps",
         // With nothing selected, Up/Down are left to focus traversal, so the keypad walks the app
