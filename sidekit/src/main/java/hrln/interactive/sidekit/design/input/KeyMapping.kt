@@ -1,6 +1,5 @@
 package hrln.interactive.sidekit.design.input
 
-import android.content.SharedPreferences
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import androidx.compose.runtime.Stable
@@ -78,19 +77,20 @@ object KeypadControls {
             control(KeyEvent.KEYCODE_MEDIA_NEXT, "Right edge", "Next track; hold for right"),
             control(KeyEvent.KEYCODE_DPAD_DOWN, "Bottom", "Move down"),
             control(KeyEvent.KEYCODE_MEDIA_PREVIOUS, "Left edge", "Previous track; hold for left"),
-            control(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, "Centre", "Play or pause"),
-            control(KeyEvent.KEYCODE_DPAD_LEFT, "Corner ←", "Move left"),
+            control(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, "Centre", "Play or pause; hold for Confirm"),
+            control(KeyEvent.KEYCODE_DPAD_LEFT, "Corner ←", "Move left; hold for Options fallback"),
             control(KeyEvent.KEYCODE_DPAD_RIGHT, "Corner →", "Move right"),
             control(KeyEvent.KEYCODE_TAB, "Tab", "Next control; hold for Back"),
-            control(KeyEvent.KEYCODE_ENTER, "Enter", "Select; hold for Options")
+            control(KeyEvent.KEYCODE_ENTER, "Enter", "Select; hold for Options (some revisions report Play/Pause)")
         )
 
         KeypadModule.GamePad -> system + dpad + listOf(
             control(KeyEvent.KEYCODE_BUTTON_A, "A", "Confirm"),
             control(KeyEvent.KEYCODE_BUTTON_B, "B", "Back in games"),
-            control(KeyEvent.KEYCODE_BUTTON_X, "X", "Game action"),
-            control(KeyEvent.KEYCODE_BUTTON_Y, "Y", "Game action"),
-            control(KeyEvent.KEYCODE_BUTTON_L1, "Shoulder", "Game action")
+            control(KeyEvent.KEYCODE_BUTTON_X, "X", "Options; hold for the action bar"),
+            control(KeyEvent.KEYCODE_BUTTON_Y, "Y", "Jump to the action bar"),
+            control(KeyEvent.KEYCODE_BUTTON_L1, "Shoulder", "Open search"),
+            control(KeyEvent.KEYCODE_BUTTON_START, "Start", "Go to the home screen")
         )
     }
 
@@ -141,7 +141,7 @@ object KeypadControls {
  */
 @Stable
 class KeyMapper internal constructor(
-    private val prefs: SharedPreferences?,
+    private val preferences: KeypadPreferences?,
     private val deviceName: (KeyEvent) -> String = ::defaultDeviceName
 ) {
     /** The module the custom mapping is for, or null for automatic detection. */
@@ -156,14 +156,9 @@ class KeyMapper internal constructor(
     private var capture: ((PhysicalKey, KeyEvent) -> Boolean)? = null
     private var watcher: ((PhysicalKey, KeyEvent) -> Unit)? = null
 
-    // Held strongly: SharedPreferences keeps listeners weakly.
-    private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == null || key == PREF_CUSTOM || key.startsWith(PREF_PROFILE)) load()
-    }
-
     init {
         load()
-        prefs?.registerOnSharedPreferenceChangeListener(listener)
+        preferences?.observe { load() }
     }
 
     /** Keys bound in [module]'s profile, by the control they were bound to. */
@@ -172,7 +167,7 @@ class KeyMapper internal constructor(
     internal fun setCustom(module: KeypadModule?) {
         if (customModule == module) return
         customModule = module
-        prefs?.edit()?.apply { if (module == null) remove(PREF_CUSTOM) else putString(PREF_CUSTOM, module.name) }?.apply()
+        preferences?.writeCustomModule(module)
     }
 
     /**
@@ -257,42 +252,26 @@ class KeyMapper internal constructor(
     }
 
     private fun load() {
-        val p = prefs ?: return
-        customModule = p.getString(PREF_CUSTOM, null)?.let { name -> KeypadModule.entries.firstOrNull { it.name == name } }
-        profiles = KeypadModule.entries.associateWith { module ->
-            p.getStringSet(PREF_PROFILE + module.name, emptySet()).orEmpty().mapNotNull(::decode).toMap()
-        }
+        val p = preferences ?: return
+        customModule = p.customModule()
+        profiles = KeypadModule.entries.associateWith { module -> p.profiles(module) }
     }
 
     private fun save(module: KeypadModule, bindings: Map<Int, PhysicalKey>) {
         profiles = profiles + (module to bindings)
-        prefs?.edit()?.putStringSet(PREF_PROFILE + module.name, bindings.map { (control, key) -> encode(control, key) }.toSet())?.apply()
+        preferences?.writeProfile(module, bindings)
     }
 
     companion object {
-        private const val PREF_CUSTOM = "custom_module"
-        private const val PREF_PROFILE = "profile."
         private const val SWALLOWED = Int.MIN_VALUE
-
-        /** "control|keyCode|scanCode|device": the device name goes last because it may hold anything. */
-        private fun encode(control: Int, key: PhysicalKey) = "$control|${key.keyCode}|${key.scanCode}|${key.device}"
-
-        private fun decode(entry: String): Pair<Int, PhysicalKey>? {
-            val parts = entry.split('|', limit = 4)
-            if (parts.size != 4) return null
-            val control = parts[0].toIntOrNull() ?: return null
-            val code = parts[1].toIntOrNull() ?: return null
-            val scan = parts[2].toIntOrNull() ?: return null
-            return control to PhysicalKey(parts[3], code, scan)
-        }
 
         private fun defaultDeviceName(event: KeyEvent): String = event.device?.name ?: if (event.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD) "Virtual" else ""
 
-        /** A mapper that saves to [prefs] (the keypad's own preferences). */
-        fun create(prefs: SharedPreferences?): KeyMapper = KeyMapper(prefs)
+        /** A mapper that saves to [preferences] (the keypad's configuration store). */
+        fun create(preferences: KeypadPreferences): KeyMapper = KeyMapper(preferences)
 
         /** A mapper for tests, with a fixed way of naming devices. */
-        fun forTesting(prefs: SharedPreferences? = null, deviceName: (KeyEvent) -> String = { "" }) = KeyMapper(prefs, deviceName)
+        fun forTesting(preferences: KeypadPreferences? = null, deviceName: (KeyEvent) -> String = { "" }) = KeyMapper(preferences, deviceName)
     }
 }
 

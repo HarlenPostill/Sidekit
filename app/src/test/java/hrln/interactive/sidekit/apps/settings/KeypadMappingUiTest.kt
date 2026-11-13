@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import androidx.compose.runtime.*
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.core.app.ApplicationProvider
@@ -13,6 +14,8 @@ import hrln.interactive.sidekit.design.action.ChromeState
 import hrln.interactive.sidekit.design.canvas.SidekitCanvas
 import hrln.interactive.sidekit.design.input.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
+import hrln.interactive.sidekit.sdk.input.SharedPreferencesKeypadPreferences
+import hrln.interactive.sidekit.sdk.settings.*
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
@@ -37,7 +40,7 @@ class KeypadMappingUiTest {
     private fun show(module: KeypadModule = KeypadModule.T9, content: @Composable () -> Unit) {
         compose.setContent {
             val scope = rememberCoroutineScope()
-            keypad = remember { Keypad.forTesting(scope, T9Words.Empty, module, KeyMapper.forTesting(prefs) { if (it.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD) "Virtual" else "Test keypad" }) }
+            keypad = remember { Keypad.forTesting(scope, T9Words.Empty, module, KeyMapper.forTesting(SharedPreferencesKeypadPreferences(context, "keypad_mapping_ui_test")) { if (it.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD) "Virtual" else "Test keypad" }) }
             SidekitTheme { SidekitCanvas(keypad = keypad, chrome = chrome) { content() } }
         }
         compose.mainClock.advanceTimeBy(1000)
@@ -201,23 +204,37 @@ class KeypadMappingUiTest {
         assertEquals(1, opened)
     }
 
-    @Test fun keyboardPageShowsPreferencesAndDiagram() {
+    @Test fun keyboardPageShowsPreferencesAndGuideLink() {
         var mapping = 0
-        show(KeypadModule.T9) { KeyboardSettingsScreen({}, onKeypadMapping = { mapping++ }) }
+        var guide = 0
+        show(KeypadModule.T9) { KeyboardSettingsScreen({}, onKeypadMapping = { mapping++ }, onKeyGuide = { guide++ }) }
         compose.onNodeWithText("Keyboard").assertIsDisplayed()
-        compose.onNodeWithText("Keypad").assertIsDisplayed()
-        compose.onNodeWithText("Input mode").assertIsDisplayed()
-        compose.onNodeWithText("Keypad Back key").assertIsDisplayed()
-        compose.onNodeWithText("Mapping").assertIsDisplayed()
-        // Tapping the keypad row cycles the module, and the diagram follows it.
-        compose.onNodeWithText("Keypad").performClick()
+        compose.onNodeWithText("Module").assertIsDisplayed()
+        compose.onNodeWithText("Typing").assertIsDisplayed()
+        compose.onNodeWithText("Back key").assertIsDisplayed()
+        compose.onNodeWithText("Key mapping").assertIsDisplayed()
+        compose.onNodeWithText("Key guide").assertIsDisplayed()
+        // Tapping the module row cycles it; the guide is a separate page.
+        compose.onNodeWithText("Module").performClick()
         compose.runOnIdle { assertEquals(KeypadModule.Qwerty, keypad.module) }
         compose.onNodeWithText("Mini QWERTY").assertIsDisplayed()
-        // The diagram is below the preferences: scroll to it and check a key and its caption.
-        scrollTo("Tap a key to learn its action.")
-        compose.onNodeWithText("QW").assertIsDisplayed()
         compose.onRoot().captureRoboImage("screenshots/keyboard_settings_page.png")
-        scrollTo("Mapping").performClick()
+        scrollTo("Key guide").performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(1, guide)
+        scrollTo("Key mapping").performSemanticsAction(SemanticsActions.OnClick)
         assertEquals(1, mapping)
+    }
+
+    @Test fun keyGuideShowsOneActionAtATime() {
+        show(KeypadModule.T9) { KeypadGuideScreen {} }
+        compose.onNodeWithText("Key guide").assertIsDisplayed()
+        compose.onNodeWithText("Tap a key to see what it does.").assertDoesNotExist()
+        compose.onRoot().captureRoboImage("screenshots/keyboard_guide_page.png")
+        compose.onNodeWithText("OK").performClick()
+        compose.onNodeWithText("Activate the focused control or confirm a suggestion.").assertIsDisplayed()
+        compose.onNodeWithText("No long press").assertIsDisplayed()
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("Open the dialer.").assertIsDisplayed()
+        compose.onRoot().captureRoboImage("screenshots/keyboard_guide_selected.png")
     }
 }

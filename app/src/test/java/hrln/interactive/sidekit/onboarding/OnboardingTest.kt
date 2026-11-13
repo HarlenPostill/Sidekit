@@ -11,6 +11,7 @@ import hrln.interactive.sidekit.apps.settings.*
 import hrln.interactive.sidekit.design.canvas.SidekitCanvas
 import hrln.interactive.sidekit.design.input.*
 import hrln.interactive.sidekit.design.theme.*
+import hrln.interactive.sidekit.sdk.settings.keypadGuideRows
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -83,25 +84,37 @@ class OnboardingTest {
 
     @Test fun `current keypad is first and other demos do not change it`() {
         launch(6, KeypadModule.Qwerty)
-        compose.onNodeWithText("1 / 4 · Mini QWERTY").assertIsDisplayed()
-        compose.onNodeWithText("aA").performScrollTo().performClick()
-        compose.onNodeWithText("Tap to change letter case. Hold to switch letters / numbers.").assertExists()
+        compose.onNodeWithText("1 / 4 · QWERTY").assertIsDisplayed()
+        compose.onNodeWithText("Tap a key to see what it does.").assertDoesNotExist()
+        compose.onNodeWithText("QW").assertExists()
         shot("07-qwerty")
-        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Skip / next keypad"))
-        compose.onNodeWithText("Skip / next keypad").performClick()
+        compose.onNodeWithText("Module").performClick()
         compose.onNodeWithText("2 / 4 · T9").assertExists()
-        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Skip / next keypad"))
-        compose.onNodeWithText("Skip / next keypad").performClick()
+        compose.onNodeWithText("Module").performClick()
         compose.onNodeWithText("3 / 4 · Sundial").assertExists()
         compose.onNodeWithText("Meet your keypad").assertIsDisplayed()
         compose.onNodeWithText("3 / 4 · Sundial").performScrollTo()
         shot("08-sundial")
-        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Skip / next keypad"))
-        compose.onNodeWithText("Skip / next keypad").performClick()
-        compose.onNodeWithText("4 / 4 · Game controller").performScrollTo()
+        compose.onNodeWithText("Module").performClick()
+        compose.onNodeWithText("4 / 4 · Controller").performScrollTo()
         shot("09-controller")
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Mini QWERTY is your current selection.", substring = true))
         compose.onNodeWithText("Mini QWERTY is your current selection.", substring = true).assertExists()
+    }
+
+    @Test fun `T9 demo follows the physical keypad`() {
+        assertEquals(
+            listOf(
+                listOf("Back", null, "Up", null, "Options"),
+                listOf(null, "Left", "OK", "Right", null),
+                listOf("Home", null, "Down", null, "Delete"),
+                listOf(null, "1", "2", "3", null),
+                listOf(null, "4", "5", "6", null),
+                listOf(null, "7", "8", "9", null),
+                listOf(null, "*", "0", "#", null)
+            ),
+            keypadGuideRows(KeypadModule.T9).map { row -> row.map { it?.label } }
+        )
     }
 
     @Test fun `Sundial demo follows the physical ring`() {
@@ -111,7 +124,7 @@ class OnboardingTest {
                 listOf("Previous", "Play / pause", "Next"),
                 listOf("Tab", "↓", "Enter")
             ),
-            demoRows(KeypadModule.Sundial).map { row -> row.map { it.label } }
+            keypadGuideRows(KeypadModule.Sundial).map { row -> row.map { it?.label } }
         )
     }
 

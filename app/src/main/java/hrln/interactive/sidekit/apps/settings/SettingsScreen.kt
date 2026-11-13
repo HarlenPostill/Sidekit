@@ -97,7 +97,7 @@ internal fun SettingsHome(onHome: () -> Unit, onAbout: () -> Unit, onCaseColour:
             // Everything below opens another page: full-height rows with a link arrow.
             item { SidekitItem("Arrange apps", Modifier.listFade(list, 3), showLinkArrow = true, onClick = onArrange) }
             item { SidekitItem("Case colour", Modifier.listFade(list, 4), secondary = caseColour?.label ?: "Original blue", showLinkArrow = true, onClick = onCaseColour) }
-            // All keypad preferences live together on the Keyboard page, with the key diagram.
+            // All keypad preferences live together on the Keyboard page, with a separate key guide.
             item { SidekitItem("Keyboard", Modifier.listFade(list, 5), showLinkArrow = true, onClick = onKeyboard) }
             item { SidekitItem("Hide apps", showLinkArrow = true, onClick = onHiddenApps) }
             // Device settings live on their own page, so this screen stays Sidekit's own settings.
@@ -145,7 +145,16 @@ private fun AboutScreen(back: () -> Unit) {
     // name, and names itself and its package on its own row.
     val appName = stringResource(R.string.app_name)
     val devBuild = context.resources.getBoolean(R.bool.is_dev_build)
-    var rows by remember { mutableStateOf(listOf("Device" to "${Build.MANUFACTURER} ${Build.MODEL}", "Android" to "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})", "Build" to Build.DISPLAY)) }
+    var rows by remember {
+        mutableStateOf(
+            listOf(
+                "Device" to "${Build.MANUFACTURER} ${Build.MODEL}",
+                "Android" to "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                "Build" to Build.DISPLAY,
+                "Third-party apps" to "Apps built with the Sidekit SDK can read your case colour and keypad setup. They cannot read messages, credentials, hidden apps or home order."
+            )
+        )
+    }
     LaunchedEffect(Unit) {
         val summaries = withContext(Dispatchers.IO) {
             val memory = ActivityManager.MemoryInfo().also { context.getSystemService(ActivityManager::class.java).getMemoryInfo(it) }
