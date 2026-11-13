@@ -59,7 +59,7 @@ enum class ActionMotion {
     Up,
 
     /** Scales in on the spot. */
-    None,
+    None
 }
 
 /**
@@ -93,7 +93,7 @@ class SideAction(
     val autoDismissMs: Long? = null,
     val artKey: Any? = null,
     val art: (@Composable () -> Unit)? = null,
-    val onClick: () -> Unit,
+    val onClick: () -> Unit
 ) {
     init {
         require(label != null || icon != null || art != null) { "SideAction '$key' needs a label, icon or art" }
@@ -101,36 +101,30 @@ class SideAction(
     }
 
     /** What the user can see; a change here plays the content swap. Click handlers are excluded. */
-    internal fun sameContent(other: SideAction): Boolean =
-        label == other.label && icon == other.icon && iconAtEnd == other.iconAtEnd &&
-            dense == other.dense && (art == null) == (other.art == null) && artKey == other.artKey
+    internal fun sameContent(other: SideAction): Boolean = label == other.label && icon == other.icon && iconAtEnd == other.iconAtEnd &&
+        dense == other.dense && (art == null) == (other.art == null) && artKey == other.artKey
 
     /** Everything the bar draws or animates is the same; only click handlers (and art lambdas for the same [artKey]) may differ. */
-    internal fun sameLook(other: SideAction): Boolean =
-        sameContent(other) && tone == other.tone && weight == other.weight && square == other.square &&
-            motion == other.motion && contentDescription == other.contentDescription
+    internal fun sameLook(other: SideAction): Boolean = sameContent(other) && tone == other.tone && weight == other.weight && square == other.square &&
+        motion == other.motion && contentDescription == other.contentDescription
 
     internal val description: String? get() = contentDescription ?: label
 
     companion object {
         /** Wide button that navigates deeper: label then a right arrow. */
-        fun forward(key: String, label: String, onClick: () -> Unit, icon: SidekitIcon = SidekitIcon.ArrowRightAlt) =
-            SideAction(key, label, icon, iconAtEnd = true, motion = ActionMotion.Forward, onClick = onClick)
+        fun forward(key: String, label: String, onClick: () -> Unit, icon: SidekitIcon = SidekitIcon.ArrowRightAlt) = SideAction(key, label, icon, iconAtEnd = true, motion = ActionMotion.Forward, onClick = onClick)
 
         /** Wide button that returns: left arrow then label. */
-        fun back(key: String, label: String, onClick: () -> Unit) =
-            SideAction(key, label, SidekitIcon.ArrowLeftAlt, motion = ActionMotion.Back, onClick = onClick)
+        fun back(key: String, label: String, onClick: () -> Unit) = SideAction(key, label, SidekitIcon.ArrowLeftAlt, motion = ActionMotion.Back, onClick = onClick)
 
         /**
          * Commit: green, check at the end, rises from below. The screen names the act, the role
          * owns the colour — saving looks the same in every sub-app.
          */
-        fun save(key: String, label: String = "Save", onClick: () -> Unit) =
-            SideAction(key, label, SidekitIcon.Check, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Up, onClick = onClick)
+        fun save(key: String, label: String = "Save", onClick: () -> Unit) = SideAction(key, label, SidekitIcon.Check, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Up, onClick = onClick)
 
         /** Commit that leaves the screen: green, arrow at the end, enters from the right. */
-        fun send(key: String, label: String = "Send", onClick: () -> Unit) =
-            SideAction(key, label, SidekitIcon.ArrowRightAlt, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Forward, onClick = onClick)
+        fun send(key: String, label: String = "Send", onClick: () -> Unit) = SideAction(key, label, SidekitIcon.ArrowRightAlt, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Forward, onClick = onClick)
 
         /**
          * Take it back: grey, no promise to advance. Cancel and Undo wear the same colour because
@@ -144,7 +138,7 @@ class SideAction(
             icon: SidekitIcon? = SidekitIcon.ArrowLeftAlt,
             motion: ActionMotion = ActionMotion.Back,
             contentDescription: String? = null,
-            onClick: () -> Unit,
+            onClick: () -> Unit
         ) = SideAction(key, label, icon, tone = ActionTone.Muted, motion = motion, contentDescription = contentDescription, onClick = onClick)
 
         /**
@@ -155,7 +149,7 @@ class SideAction(
             key: String = "undo",
             label: String = "Undo",
             contentDescription: String? = null,
-            onClick: () -> Unit,
+            onClick: () -> Unit
         ) = SideAction(key, label, SidekitIcon.Undo, tone = ActionTone.Muted, motion = ActionMotion.Up, contentDescription = contentDescription, onClick = onClick)
 
         /**
@@ -178,8 +172,7 @@ class SideAction(
         )
 
         /** Destroy: red, wherever it appears (bar, confirm, Options). [icon] stays optional. */
-        fun delete(key: String, label: String = "Delete", icon: SidekitIcon? = null, onClick: () -> Unit) =
-            SideAction(key, label, icon, tone = ActionTone.Destructive, onClick = onClick)
+        fun delete(key: String, label: String = "Delete", icon: SidekitIcon? = null, onClick: () -> Unit) = SideAction(key, label, icon, tone = ActionTone.Destructive, onClick = onClick)
 
         /** Square icon-only button. */
         fun square(
@@ -188,7 +181,7 @@ class SideAction(
             contentDescription: String,
             onClick: () -> Unit,
             tone: ActionTone = ActionTone.Primary,
-            motion: ActionMotion = ActionMotion.None,
+            motion: ActionMotion = ActionMotion.None
         ) = SideAction(key, icon = icon, tone = tone, square = true, motion = motion, contentDescription = contentDescription, onClick = onClick)
     }
 }
@@ -201,7 +194,7 @@ class SideAction(
 class HeaderSpec(
     val title: String,
     val align: TextAlign = TextAlign.Start,
-    val modifier: Modifier = Modifier,
+    val modifier: Modifier = Modifier
 )
 
 /**
@@ -326,7 +319,7 @@ internal class ChromePublisher {
             opts.map { o ->
                 SideAction(
                     "options.${o.key}", o.label, o.icon, o.iconAtEnd, o.tone, o.weight, o.square,
-                    ActionMotion.Up, o.contentDescription, dense = o.dense || opts.size > 2, artKey = o.artKey, art = o.art,
+                    ActionMotion.Up, o.contentDescription, dense = o.dense || opts.size > 2, artKey = o.artKey, art = o.art
                 ) {
                     close()
                     o.onClick()

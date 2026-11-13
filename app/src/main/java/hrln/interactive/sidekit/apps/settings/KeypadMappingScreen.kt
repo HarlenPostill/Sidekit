@@ -42,7 +42,7 @@ internal fun NavGraphBuilder.keypadMappingGraph(nav: NavHostController) {
         KeypadMappingScreen(
             back = { nav.popBackStack() },
             learn = { module, control -> nav.navigate("$MAPPING/key/${module.name}/${control.keyCode}") },
-            tester = { nav.navigate(TESTER) },
+            tester = { nav.navigate(TESTER) }
         )
     }
     composable(LEARN) { entry ->
@@ -68,8 +68,12 @@ internal fun KeypadMappingScreen(back: () -> Unit, learn: (KeypadModule, KeypadC
     val custom = mapper?.customModule
     val bindings = custom?.let { mapper.bindings(it) }.orEmpty()
     val list = rememberLazyListState()
-    fun toggle() { keypad?.useCustomMapping(if (custom == null) keypad.module else null) }
-    fun nextLayout() { custom?.let { keypad.useCustomMapping(KeypadModule.entries[(it.ordinal + 1) % KeypadModule.entries.size]) } }
+    fun toggle() {
+        keypad?.useCustomMapping(if (custom == null) keypad.module else null)
+    }
+    fun nextLayout() {
+        custom?.let { keypad.useCustomMapping(KeypadModule.entries[(it.ordinal + 1) % KeypadModule.entries.size]) }
+    }
     // Reset is a bar action only when there is something to reset, so it never sits around as a
     // dead option. Switching back to automatic stays in Options: it is a mode change, not a reset.
     val actions = buildList {
@@ -92,23 +96,28 @@ internal fun KeypadMappingScreen(back: () -> Unit, learn: (KeypadModule, KeypadC
             item { SidekitItem("Key tester", Modifier.height(CompactRowHeight).listFade(list, 2), showLinkArrow = true, onClick = tester) }
             item {
                 SidekitText(
-                    if (custom == null) "Sidekit recognises Sidephone keypad modules from their keys. Turn on Custom for a keypad it doesn’t know, or to move keys around."
-                    else "Detection is paused. Choose a key to teach Sidekit which button to use for it. Keys you don’t change keep working as before.",
-                    style = SidekitTheme.typography.label, color = SidekitTheme.colors.surfaceA6, maxLines = Int.MAX_VALUE,
+                    if (custom == null) {
+                        "Sidekit recognises Sidephone keypad modules from their keys. Turn on Custom for a keypad it doesn’t know, or to move keys around."
+                    } else {
+                        "Detection is paused. Choose a key to teach Sidekit which button to use for it. Keys you don’t change keep working as before."
+                    },
+                    style = SidekitTheme.typography.label,
+                    color = SidekitTheme.colors.surfaceA6,
+                    maxLines = Int.MAX_VALUE
                 )
             }
             if (custom != null) {
                 itemsIndexed(KeypadControls.of(custom), key = { _, c -> c.keyCode }) { index, control ->
                     val bound = bindings[control.keyCode]
                     SidekitItem(
-                        control.label, Modifier.height(CompactRowHeight).listFade(list, index + 4),
+                        control.label,
+                        Modifier.height(CompactRowHeight).listFade(list, index + 4),
                         secondary = bound?.label ?: "Default",
                         // Moved keys stand out; the rest read as defaults.
                         icon = if (bound != null) SidekitIcon.Edit else null,
-                        onClick = { learn(custom, control) },
+                        onClick = { learn(custom, control) }
                     )
                 }
-
             }
         }
     }
@@ -118,6 +127,7 @@ internal fun KeypadMappingScreen(back: () -> Unit, learn: (KeypadModule, KeypadC
 internal sealed interface CaptureStep {
     /** Listening for a key; gives up after [secondsLeft]. */
     data class Waiting(val secondsLeft: Int) : CaptureStep
+
     /** Heard [key]. [movesFrom] is the control it is bound to now, if any; [guarded] means it is the Back or Options key. */
     data class Heard(val key: PhysicalKey, val movesFrom: KeypadControl?, val guarded: Boolean) : CaptureStep
 }
@@ -146,11 +156,20 @@ internal fun KeyCaptureScreen(module: KeypadModule, control: KeypadControl, done
                     is CaptureStep.Waiting -> {
                         // The keypad service turns the Sidephone's top-left key into the system's Back:
                         // that's the way out, not a key to learn.
-                        if (event.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD && event.keyCode == KeyEvent.KEYCODE_BACK) latestDone()
-                        else step = heard(mapper, module, control, key)
+                        if (event.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD && event.keyCode == KeyEvent.KEYCODE_BACK) {
+                            latestDone()
+                        } else {
+                            step = heard(mapper, module, control, key)
+                        }
                         true
                     }
-                    is CaptureStep.Heard -> if (key == now.key && !now.guarded) { save(key); true } else false
+
+                    is CaptureStep.Heard -> if (key == now.key && !now.guarded) {
+                        save(key)
+                        true
+                    } else {
+                        false
+                    }
                 }
             }
             onDispose { stop() }
@@ -165,8 +184,17 @@ internal fun KeyCaptureScreen(module: KeypadModule, control: KeypadControl, done
         }
         latestDone()
     }
-    KeyCaptureContent(module, control, step, cancel = done, retry = { attempt++; step = CaptureStep.Waiting(CAPTURE_SECONDS) },
-        save = { (step as? CaptureStep.Heard)?.let { save(it.key) } })
+    KeyCaptureContent(
+        module,
+        control,
+        step,
+        cancel = done,
+        retry = {
+            attempt++
+            step = CaptureStep.Waiting(CAPTURE_SECONDS)
+        },
+        save = { (step as? CaptureStep.Heard)?.let { save(it.key) } }
+    )
 }
 
 private fun heard(mapper: KeyMapper, module: KeypadModule, control: KeypadControl, key: PhysicalKey): CaptureStep.Heard {
@@ -179,11 +207,14 @@ private fun heard(mapper: KeyMapper, module: KeypadModule, control: KeypadContro
 @Composable
 internal fun KeyCaptureContent(module: KeypadModule, control: KeypadControl, step: CaptureStep, cancel: () -> Unit, retry: () -> Unit, save: () -> Unit) {
     val heard = step as? CaptureStep.Heard
-    val actions = if (heard == null) listOf(SideAction.cancel("cancel", onClick = cancel))
-    else listOf(
-        SideAction("retry", "Try again", SidekitIcon.Undo, tone = ActionTone.Muted, onClick = retry),
-        SideAction("save", "Save", SidekitIcon.Check, tone = ActionTone.Secondary, onClick = save),
-    )
+    val actions = if (heard == null) {
+        listOf(SideAction.cancel("cancel", onClick = cancel))
+    } else {
+        listOf(
+            SideAction("retry", "Try again", SidekitIcon.Undo, tone = ActionTone.Muted, onClick = retry),
+            SideAction("save", "Save", SidekitIcon.Check, tone = ActionTone.Secondary, onClick = save)
+        )
+    }
     if (heard != null) BackHandler(onBack = cancel)
     SidekitScaffold(if (heard == null) "Press a key" else "Press it again", actions = actions) { padding ->
         SidekitList(padding) {
@@ -201,10 +232,14 @@ internal fun KeyCaptureContent(module: KeypadModule, control: KeypadControl, ste
                         SidekitItem("Listening…", Modifier.height(CompactRowHeight), secondary = "${step.secondsLeft} s", colour = ItemColour.Muted)
                     }
                     item {
-                        SidekitText("Press the button on your keypad you want to use for ${control.label}. Tap Cancel to stop.",
-                            style = SidekitTheme.typography.label, maxLines = Int.MAX_VALUE)
+                        SidekitText(
+                            "Press the button on your keypad you want to use for ${control.label}. Tap Cancel to stop.",
+                            style = SidekitTheme.typography.label,
+                            maxLines = Int.MAX_VALUE
+                        )
                     }
                 }
+
                 is CaptureStep.Heard -> {
                     item {
                         SidekitItem(step.key.label, Modifier.height(CompactRowHeight), secondary = step.key.device.ifEmpty { "Keypad" }, icon = SidekitIcon.Check)
@@ -234,8 +269,11 @@ internal fun KeyTesterScreen(back: () -> Unit) {
     if (keypad != null) {
         DisposableEffect(keypad) {
             val stop = keypad.mapper.watch { key, out ->
-                val mappedTo = if (out.keyCode == key.keyCode) null
-                else KeypadControls.find(keypad.module, out.keyCode)?.label ?: PhysicalKey.keyName(out.keyCode)
+                val mappedTo = if (out.keyCode == key.keyCode) {
+                    null
+                } else {
+                    KeypadControls.find(keypad.module, out.keyCode)?.label ?: PhysicalKey.keyName(out.keyCode)
+                }
                 presses.add(0, TestedKey(key, out.scanCode, mappedTo))
                 if (presses.size > MAX_TESTED) presses.removeAt(presses.lastIndex)
             }
@@ -253,7 +291,9 @@ internal fun KeyTesterContent(module: KeypadModule?, presses: List<TestedKey>, b
             item {
                 SidekitText(
                     "Press keys to see what they send and what they do in ${module?.label ?: "Sidekit"}. Back still goes back.",
-                    style = SidekitTheme.typography.label, color = SidekitTheme.colors.surfaceA6, maxLines = Int.MAX_VALUE,
+                    style = SidekitTheme.typography.label,
+                    color = SidekitTheme.colors.surfaceA6,
+                    maxLines = Int.MAX_VALUE
                 )
             }
             items(presses.size) { index ->

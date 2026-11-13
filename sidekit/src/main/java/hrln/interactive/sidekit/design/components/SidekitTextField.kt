@@ -7,16 +7,14 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -24,23 +22,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.key.onInterceptKeyBeforeSoftKeyboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
 import hrln.interactive.sidekit.design.action.ActionMotion
 import hrln.interactive.sidekit.design.action.ActionTone
 import hrln.interactive.sidekit.design.action.PublishActionOverride
@@ -48,12 +48,12 @@ import hrln.interactive.sidekit.design.action.SideAction
 import hrln.interactive.sidekit.design.icons.SidekitIcon
 import hrln.interactive.sidekit.design.input.Dictation
 import hrln.interactive.sidekit.design.input.LocalKeypad
-import hrln.interactive.sidekit.design.input.insertDictated
-import hrln.interactive.sidekit.design.input.rememberDictation
 import hrln.interactive.sidekit.design.input.T9Engine
 import hrln.interactive.sidekit.design.input.T9Mode
 import hrln.interactive.sidekit.design.input.T9Session
 import hrln.interactive.sidekit.design.input.TextFieldT9Buffer
+import hrln.interactive.sidekit.design.input.insertDictated
+import hrln.interactive.sidekit.design.input.rememberDictation
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 
 /**
@@ -86,7 +86,7 @@ fun SidekitTextField(
     autoFocus: Boolean = false,
     trailingTypingAction: SideAction? = null,
     onKeypadFocus: (() -> Unit)? = null,
-    dictation: Boolean = true,
+    dictation: Boolean = true
 ) {
     val keypad = LocalKeypad.current
     val scope = rememberCoroutineScope()
@@ -114,8 +114,11 @@ fun SidekitTextField(
     // bring it up for one without (Sundial, game controller).
     var lastT9 by remember { mutableStateOf(t9) }
     LaunchedEffect(t9, focused) {
-        if (focused && t9) keyboard?.hide()
-        else if (focused && lastT9) keyboard?.show()
+        if (focused && t9) {
+            keyboard?.hide()
+        } else if (focused && lastT9) {
+            keyboard?.show()
+        }
         lastT9 = t9
     }
 
@@ -125,11 +128,20 @@ fun SidekitTextField(
     val canDictate = dictation && remember(context) { SpeechRecognizer.isRecognitionAvailable(context) }
     // A word started on the keypad while listening is finished before the phrase goes in, so the
     // phrase never lands inside it.
-    val dictate = { session?.finish(); speech.start { session?.finish(); state.insertDictated(it) } }
+    val dictate = {
+        session?.finish()
+        speech.start {
+            session?.finish()
+            state.insertDictated(it)
+        }
+    }
     val microphone = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         // Focus can move while the permission dialog is up; then the phrase has nowhere to go.
-        if (granted) { if (focused) dictate() }
-        else Toast.makeText(context, "Allow the microphone to dictate", Toast.LENGTH_SHORT).show()
+        if (granted) {
+            if (focused) dictate()
+        } else {
+            Toast.makeText(context, "Allow the microphone to dictate", Toast.LENGTH_SHORT).show()
+        }
     }
     // Leaving the field ends dictation; a phrase still in flight would land in the wrong place.
     LaunchedEffect(focused) { if (!focused) speech.release() }
@@ -155,7 +167,7 @@ fun SidekitTextField(
                     session.finish()
                     focusManager.clearFocus()
                     onDone?.invoke()
-                },
+                }
             ),
             // The Options key while typing picks the input mode directly.
             options = T9Mode.entries.map { mode ->
@@ -167,10 +179,10 @@ fun SidekitTextField(
                     "mode.${mode.name}",
                     label,
                     tone = if (keypad.engine.mode == mode) ActionTone.Primary else ActionTone.Muted,
-                    contentDescription = "Input mode $label",
+                    contentDescription = "Input mode $label"
                 ) { session.setMode(mode) }
             },
-            trailingAction = trailingTypingAction,
+            trailingAction = trailingTypingAction
         )
     }
 
@@ -223,7 +235,7 @@ fun SidekitTextField(
         cursorBrush = SolidColor(colors.light),
         keyboardOptions = KeyboardOptions(
             showKeyboardOnFocus = !t9,
-            imeAction = if (onDone != null) ImeAction.Done else ImeAction.Default,
+            imeAction = if (onDone != null) ImeAction.Done else ImeAction.Default
         ),
         onKeyboardAction = if (onDone != null) KeyboardActionHandler { onDone() } else null,
         lineLimits = if (singleLine) TextFieldLineLimits.SingleLine else TextFieldLineLimits.MultiLine(),
@@ -242,12 +254,12 @@ fun SidekitTextField(
                     val dx = if (singleLine) -scroll.value.toFloat() else 0f
                     val dy = if (singleLine) 0f else -scroll.value.toFloat()
                     translate(dx, dy) { drawPath(path, highlightColor) }
-                },
+                }
             ) {
                 if (placeholder != null && state.text.isEmpty()) SidekitText(placeholder, style = textStyle, color = colors.surfaceA6)
                 field()
             }
-        },
+        }
     )
 }
 
@@ -267,7 +279,7 @@ fun SidekitTextField(
     singleLine: Boolean = false,
     onDone: (() -> Unit)? = null,
     autoFocus: Boolean = false,
-    dictation: Boolean = true,
+    dictation: Boolean = true
 ) {
     val state = rememberTextFieldState(value)
     val latest by rememberUpdatedState(onValueChange)
@@ -296,7 +308,7 @@ private fun t9Actions(engine: T9Engine, session: T9Session, dictation: Dictation
                 // Longer words get more room so suggestions rarely truncate.
                 weight = 1f + 0.12f * word.length + if (chosen) 0.4f else 0f,
                 dense = true,
-                contentDescription = "Suggestion $word",
+                contentDescription = "Suggestion $word"
             ) { session.pick(i) }
         }
     }
@@ -314,12 +326,12 @@ private fun t9Actions(engine: T9Engine, session: T9Session, dictation: Dictation
                 square = !compact,
                 motion = ActionMotion.Up,
                 contentDescription = if (dictation.listening) "Stop dictating" else "Dictate",
-                onClick = onDictate,
+                onClick = onDictate
             )
         } else {
             null
         },
-        SideAction("t9.2", if (compact) null else "Done", SidekitIcon.Check, iconAtEnd = !compact, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = "Done typing", onClick = onDone),
+        SideAction("t9.2", if (compact) null else "Done", SidekitIcon.Check, iconAtEnd = !compact, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = "Done typing", onClick = onDone)
     )
 }
 

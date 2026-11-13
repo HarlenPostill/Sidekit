@@ -5,8 +5,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -29,11 +29,15 @@ import kotlinx.coroutines.flow.*
 class WeatherViewModel(val repository: WeatherRepository, private val city: suspend (Place) -> String? = { null }) : ViewModel() {
     val forecast = MutableStateFlow<Forecast?>(null)
     val status = MutableStateFlow("Select a location")
+
     /**
      * Shows the fix straight away as "Current location", then adds its town once the geocoder
      * answers ("Current location · Madrid"). Offline, the plain name stays until it is next shown.
      */
-    fun selectCurrentLocation(fix: Place) { repository.select(fix); nameCurrentLocation(fix) }
+    fun selectCurrentLocation(fix: Place) {
+        repository.select(fix)
+        nameCurrentLocation(fix)
+    }
     private fun nameCurrentLocation(fix: Place) = viewModelScope.launch {
         city(fix)?.let { repository.rename(fix, currentLocationName(it)) }
     }
@@ -73,8 +77,14 @@ fun NavGraphBuilder.sideweatherGraph(nav: NavHostController) {
                 val place = settings?.places?.firstOrNull { it.key == settings?.selected }
                 val imperial = settings?.fahrenheit == true
                 if (page in listOf("home", "hourly", "five-day")) WhileVisible(place?.key) { vm.visible(place) }
-                val back = { nav.popBackStack(); Unit }
-                val locations = { nav.navigate("$root/locations") { launchSingleTop = true }; Unit }
+                val back = {
+                    nav.popBackStack()
+                    Unit
+                }
+                val locations = {
+                    nav.navigate("$root/locations") { launchSingleTop = true }
+                    Unit
+                }
                 val options = listOf(SideAction("units", if (imperial) "Use °C" else "Use °F") { vm.repository.settings.edit { it.copy(fahrenheit = !it.fahrenheit) } })
                 when (page) {
                     "search" -> PlaceSearch(back) {
@@ -120,6 +130,7 @@ fun NavGraphBuilder.sideweatherGraph(nav: NavHostController) {
                     }
 
                     "home" -> SideweatherHomeScreen(forecast?.let { f -> place?.let { f.current(it, imperial) } } ?: CurrentConditions(place?.name ?: "Choose a location", "—", "", ""), forecast?.summary(imperial).orEmpty() + WeatherRow(error ?: status, ""), { nav.navigate("$root/hourly") }, { nav.navigate("$root/five-day") }, locations, options)
+
                     else -> ForecastScreen(if (page == "hourly") "Hourly forecast" else "5-day forecast", (if (page == "hourly") forecast?.hourly(imperial) else forecast?.daily(imperial)).orEmpty() + WeatherRow(status, ""), back, locations, place = place?.name)
                 }
             }

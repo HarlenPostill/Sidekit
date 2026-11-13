@@ -44,12 +44,16 @@ internal fun AppsScreen(vm: AppsViewModel, back: () -> Unit) {
         }
     }
     val app = selected
-    val options = if (app == null) emptyList() else listOf(
-        SideAction("info", "App info") { perform { vm.repository.info(app) } },
-        SideAction.delete("uninstall", "Uninstall") {
-            perform { context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.component.packageName}")).putExtra(Intent.EXTRA_USER, app.user)) }
-        },
-    )
+    val options = if (app == null) {
+        emptyList()
+    } else {
+        listOf(
+            SideAction("info", "App info") { perform { vm.repository.info(app) } },
+            SideAction.delete("uninstall", "Uninstall") {
+                perform { context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.component.packageName}")).putExtra(Intent.EXTRA_USER, app.user)) }
+            }
+        )
+    }
     val list = rememberLazyListState()
     val actions = withNotice(message, { message = null }, listOf(SideAction.back("back", "Home", back)))
     SidekitScaffold("Apps", actions = actions, options = options) { padding ->

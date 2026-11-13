@@ -1,14 +1,15 @@
 package hrln.interactive.sidekit.ui
 
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onLast
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.getOrNull
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -17,7 +18,6 @@ import androidx.compose.ui.test.swipeLeft
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.activity.ComponentActivity
 import hrln.interactive.sidekit.apps.sidenotes.SidenotesTags
 import hrln.interactive.sidekit.launcher.LauncherTags
 import hrln.interactive.sidekit.navigation.LAUNCHER_ROUTE
@@ -39,8 +39,7 @@ class NavigationUiTest {
         SidekitPreviewFrame { SidekitNavHost(nav) }
     }
 
-    private fun openFromDock(app: SubApp) =
-        compose.onAllNodesWithContentDescription(app.label).onLast().performClick()
+    private fun openFromDock(app: SubApp) = compose.onAllNodesWithContentDescription(app.label).onLast().performClick()
 
     @Test fun sidenotesWriteSaveSwipeDeleteUndoAndGoHome() {
         launch()
@@ -99,5 +98,4 @@ class NavigationUiTest {
     }
 }
 
-private fun hasClickLabel(label: String) =
-    SemanticsMatcher("click label = $label") { it.config.getOrNull(SemanticsActions.OnClick)?.label == label }
+private fun hasClickLabel(label: String) = SemanticsMatcher("click label = $label") { it.config.getOrNull(SemanticsActions.OnClick)?.label == label }
