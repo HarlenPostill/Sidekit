@@ -26,6 +26,9 @@ class MainActivity : SidekitActivity() {
     /** Bumped when Home is pressed while SideKit is already in front; the nav host returns to the launcher. */
     private val homeRequests = mutableIntStateOf(0)
 
+    /** Bumped to focus the launcher's app search, returning to the launcher first if needed. */
+    private val searchRequests = mutableIntStateOf(0)
+
     override fun onSidekitCreate(savedInstanceState: Bundle?) {
         // Opened from an sms: link or a message notification: go to that conversation.
         if (savedInstanceState == null && !SideportLinks.handle(intent)) IncomingLinks.handle(intent)
@@ -36,7 +39,7 @@ class MainActivity : SidekitActivity() {
         val prefs = remember { SidekitPreferences(this) }
         var setupComplete by remember { mutableStateOf(prefs.setupComplete) }
         if (setupComplete) {
-            SidekitNavHost(homeRequests = homeRequests.intValue)
+            SidekitNavHost(homeRequests = homeRequests.intValue, searchRequests = searchRequests.intValue)
         } else {
             OnboardingScreen(onFinish = { setupComplete = true })
         }
@@ -44,6 +47,15 @@ class MainActivity : SidekitActivity() {
 
     override fun onSidekitResume(keypad: Keypad) {
         SidekitPreferences(this).applyInputDefault(keypad)
+    }
+
+    override fun onSidekitHome() {
+        homeRequests.intValue++
+    }
+
+    override fun onSidekitSearch() {
+        homeRequests.intValue++
+        searchRequests.intValue++
     }
 
     override fun onNewIntent(intent: Intent) {

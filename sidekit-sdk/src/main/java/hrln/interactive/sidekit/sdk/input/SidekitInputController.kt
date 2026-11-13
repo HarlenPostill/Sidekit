@@ -32,13 +32,26 @@ class SidekitInputController(
     val keypad: Keypad,
     val chrome: ChromeState,
     private val dispatch: (KeyEvent) -> Boolean,
-    private val onBack: () -> Unit
+    private val onBack: () -> Unit,
+    private val onHome: () -> Unit = {},
+    private val onSearch: () -> Unit = {}
 ) {
     /** The Sundial has no Back/Options key: hold Tab / Enter, and hold Previous/Next for left/right. */
     private val sundialHold = HoldToAct(onHold = { action, source -> performSundialHold(action, source) })
 
-    /** Forgets a Sundial press that never got its release (the window lost focus). */
-    fun reset() = sundialHold.reset()
+    /** Tap Options opens the options; holding it jumps to the first action button. */
+    private val optionsHold = HoldToAct(
+        onHold = { _, _ ->
+            keypad.finishTyping()
+            chrome.focusActionBar()
+        }
+    )
+
+    /** Forgets a hold whose key never got its release (the window lost focus). */
+    fun reset() {
+        sundialHold.reset()
+        optionsHold.reset()
+    }
 
     /**
      * Handles a raw key event. Returns true when Sidekit consumed it, false to let the platform
@@ -55,6 +68,16 @@ class SidekitInputController(
         // keep their normal behaviour, as does a T9 OK if the remembered module is stale.
         val fromSundial = raw.device?.name in SUNDIAL_DEVICES || raw.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD
         when (val hold = sundialHold.handle(translated) { code -> if (fromSundial) sundialHoldAction(code) else null }) {
+            HoldToAct.Result.Pass -> Unit
+
+            HoldToAct.Result.Consume -> return true
+
+            is HoldToAct.Result.Deliver -> {
+                hold.events.forEach(::dispatchTranslated)
+                return true
+            }
+        }
+        when (val hold = optionsHold.handle(translated) { code -> if (SystemKeys.isOptions(code)) code else null }) {
             HoldToAct.Result.Pass -> Unit
 
             HoldToAct.Result.Consume -> return true
@@ -84,6 +107,10 @@ class SidekitInputController(
                 chrome.toggleOptions()
             }
 
+            NavControls.Home -> onHome()
+
+            NavControls.Search -> onSearch()
+
             else -> dispatchNav(action, source)
         }
     }
@@ -110,6 +137,24 @@ class SidekitInputController(
 
     /** Routes an already-translated event; also used for the tap released by [sundialHold]. */
     private fun dispatchTranslated(event: KeyEvent): Boolean {
+        // Generic chrome actions from the controller. A normal keyboard's Home/Search keys keep
+        // their platform behaviour.
+        if (keypad.module == KeypadModule.GamePad &&
+            (event.keyCode == NavControls.Home || event.keyCode == NavControls.Search)
+        ) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                if (event.keyCode == NavControls.Home) onHome() else onSearch()
+            }
+            return true
+        }
+        // The controller's Y button jumps straight to the first action button.
+        if (keypad.module == KeypadModule.GamePad && event.keyCode == KeyEvent.KEYCODE_BUTTON_Y) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                keypad.finishTyping()
+                chrome.focusActionBar()
+            }
+            return true
+        }
         when {
             // Keypad top-right: the universal Options key. Acts on release; the press is consumed
             // so the system's end-call handling never sees it.

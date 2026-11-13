@@ -50,7 +50,9 @@ abstract class SidekitActivity : ComponentActivity() {
             keypad = keypad,
             chrome = chrome,
             dispatch = ::dispatchToPlatform,
-            onBack = { onBackPressedDispatcher.onBackPressed() }
+            onBack = { onBackPressedDispatcher.onBackPressed() },
+            onHome = ::onSidekitHome,
+            onSearch = ::onSidekitSearch
         )
     }
 
@@ -83,6 +85,12 @@ abstract class SidekitActivity : ComponentActivity() {
 
     /** App-specific resume work; Sidekit applies its input mode here. */
     protected open fun onSidekitResume(keypad: Keypad) {}
+
+    /** A controller's Start/Home key. The host decides where its own home is. */
+    protected open fun onSidekitHome() {}
+
+    /** A controller's shoulder/Search key. The host opens its search surface. */
+    protected open fun onSidekitSearch() {}
 
     final override fun onResume() {
         super.onResume()

@@ -25,6 +25,7 @@ import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.input.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.launcher.rememberNativeApps
+import hrln.interactive.sidekit.sdk.settings.KeypadGuide
 import hrln.interactive.sidekit.sdk.theme.caseColourChoices
 
 @Composable
@@ -166,7 +167,7 @@ internal fun OnboardingScreen(onFinish: () -> Unit, replay: Boolean = false) {
 
                     6 -> {
                         item { SidekitText("${tourIndex + 1} / ${modules.size} · ${modules[tourIndex].label}", style = SidekitTheme.typography.headline) }
-                        item { KeypadDemo(modules[tourIndex]) }
+                        item { KeypadGuide(modules[tourIndex]) }
                         item { SidekitText("${keypad?.module?.label ?: "T9"} is your current selection. Press a letter, digit or media key to detect yours.", style = SidekitTheme.typography.label, maxLines = Int.MAX_VALUE) }
 
                         item { SidekitLineButton("Skip / next keypad", { tourIndex = (tourIndex + 1) % modules.size }, variant = LineButtonVariant.Secondary) }
