@@ -240,4 +240,12 @@ class KeypadMappingUiTest {
         compose.onNodeWithText("Open the dialer.").assertIsDisplayed()
         compose.onRoot().captureRoboImage("screenshots/keyboard_guide_selected.png")
     }
+
+    @Test fun keyGuideModuleRowPreviewsWithoutChangingTheModuleInUse() {
+        show(KeypadModule.T9) { KeypadGuideScreen {} }
+        compose.onNodeWithText("T9 · in use").assertIsDisplayed()
+        compose.onNodeWithText("Module").performClick()
+        compose.onNodeWithText("Mini QWERTY").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(KeypadModule.T9, keypad.module) }
+    }
 }
