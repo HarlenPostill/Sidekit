@@ -34,6 +34,24 @@ class TripFlowTest {
         compose.onNodeWithText("Saved").performClick()
         compose.onNodeWithText("Home → Park").assertIsDisplayed()
     }
+    @Test fun deletingATripOnHomeOffersUndo() {
+        compose.setContent {
+            val nav = rememberNavController()
+            SidekitPreviewFrame { NavHost(nav, startDestination = SubApp.TripPlanning.route) { tripPlanningGraph(nav) } }
+        }
+        compose.waitUntil(5_000) { TripRepository.get(compose.activity).store.state.value != null }
+        compose.onNodeWithText("Plan").performClick()
+        compose.onNodeWithText("From").performTextInput("Undo start")
+        compose.onNodeWithText("To").performTextInput("Undo end")
+        compose.onNodeWithText("Save").performClick()
+        val row = hasAnyDescendant(hasText("Undo start → Undo end")) and SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsActions.CustomActions)
+        compose.runOnIdle {
+            compose.onNode(row).fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].first().action()
+        }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Undo start → Undo end").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText("Undo").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Undo start → Undo end").fetchSemanticsNodes().isNotEmpty() }
+    }
     @Test fun selectNswStopsFindJourneySaveAndReadItsLegs() {
         val api = NswTransit(hrln.interactive.sidekit.apps.integrations.JsonRequest { url, _, body ->
             when {
