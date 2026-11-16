@@ -52,7 +52,8 @@ the Pages layout and rebuilds the sample with `-PsidekitUsePublished=true`, whic
 POM, the transitive `sidekit-design` dependency, the consumer rules and the exact tree that is
 served to third-party apps (`settings.gradle.kts` lists `build/pages-repo` as a repository).
 
-The `Publish SDK` workflow runs on `v*` tags (or manually), stages the same tree and pushes it into
+The `Publish SDK` workflow runs on `vX.Y.Z` tags (a manual run must also be started from such a
+tag; it refuses branches and versions that are already published), stages the same tree and pushes it into
 the `gh-pages` branch, which GitHub Pages serves as a static Maven repository. Nothing is
 uploaded to a package registry, so consumers need no credentials:
 
@@ -68,7 +69,9 @@ dependencies {
 }
 ```
 
-The workflow keeps older versions in `gh-pages` (consumers pin versions) and writes `.nojekyll`, so
+The workflow keeps older versions in `gh-pages` (consumers pin versions): it seeds `build/pages-repo`
+from the published tree first, so each `maven-metadata.xml` gains the new version instead of being
+replaced. It also writes `.nojekyll`, so
 Pages serves the files untouched. Enable it once in the repository settings: **Settings → Pages →
 Deploy from a branch → `gh-pages` / root**. The site URL is
 `https://<owner>.github.io/Sidekit/maven/`.
