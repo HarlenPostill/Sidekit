@@ -3,6 +3,7 @@ package hrln.interactive.sidekit.apps.apps
 import android.content.Intent
 import android.net.Uri
 import android.os.Process
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
@@ -15,9 +16,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import hrln.interactive.sidekit.apps.sideport.registry.PortedApps
 import hrln.interactive.sidekit.design.action.SideAction
 import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
+import hrln.interactive.sidekit.home.HomePreferences
+import hrln.interactive.sidekit.home.homeId
 import hrln.interactive.sidekit.navigation.SubApp
 
 fun NavGraphBuilder.appsGraph(nav: NavHostController) {
@@ -33,8 +37,14 @@ internal fun AppsScreen(vm: AppsViewModel, back: () -> Unit) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
+    val ported by remember { PortedApps.get(context).apps }.collectAsStateWithLifecycle()
+    val home = remember(context) { HomePreferences(context) }
+    var homeRevision by remember { mutableIntStateOf(0) }
+    var opened by remember { mutableStateOf<LaunchableApp?>(null) }
     var selected by remember { mutableStateOf<LaunchableApp?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
+    // Held above the app page's early return, so Back from the page lands where the list was.
+    val list = rememberLazyListState()
     fun perform(action: () -> Unit) {
         try {
             action()
@@ -42,22 +52,48 @@ internal fun AppsScreen(vm: AppsViewModel, back: () -> Unit) {
             message = "Couldn't open app: ${e.localizedMessage}"
         }
     }
-    val app = selected
-    val options = if (app == null) {
-        emptyList()
-    } else {
+
+    val app = opened
+    if (app != null) {
+        BackHandler { opened = null }
+        val id = app.homeId(context)
+        val pinned = remember(id, homeRevision) { id in home.homeOrder }
+        val portedApp = ported.firstOrNull { it.packageName == app.component.packageName }
+        AppDetailScreen(
+            app = app,
+            source = vm.repository,
+            ported = portedApp,
+            pinned = pinned,
+            onBack = { opened = null },
+            onPin = {
+                home.pin(id)
+                homeRevision++
+            },
+            onUnpin = {
+                home.unpin(id)
+                homeRevision++
+            }
+        )
+        return
+    }
+
+    val options = selected?.let { app ->
         listOf(
             SideAction("info", "App info") { perform { vm.repository.info(app) } },
             SideAction("uninstall", "Uninstall") {
-                perform { context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.component.packageName}")).putExtra(Intent.EXTRA_USER, app.user)) }
+                perform {
+                    context.startActivity(
+                        Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.component.packageName}"))
+                            .putExtra(Intent.EXTRA_USER, app.user)
+                    )
+                }
             }
         )
-    }
-    val list = rememberLazyListState()
+    }.orEmpty()
     SidekitScaffold("Apps", actions = listOf(SideAction.back("back", "Home", back)), options = options) { padding ->
         SidekitList(padding, state = list) {
             item { AppSearchField(query) { vm.query.value = it } }
-            item { SidekitCard { SidekitText(selected?.let { "${it.label} selected. Press Options for app info or uninstall." } ?: "Tap to open · hold an app for Options", style = SidekitTheme.typography.label, maxLines = Int.MAX_VALUE) } }
+            item { SidekitCard { SidekitText(selected?.let { "${it.label} selected. Press Options for app info or uninstall." } ?: "Tap to open · hold an app for its page", style = SidekitTheme.typography.label, maxLines = Int.MAX_VALUE) } }
             val banner = message ?: state.error
             banner?.let { item { SidekitCard(onClick = { message = null }) { SidekitText(it, style = SidekitTheme.typography.label, maxLines = Int.MAX_VALUE) } } }
             if (!state.loaded && state.error == null) item { SidekitItem("Loading apps…") }
@@ -74,8 +110,8 @@ internal fun AppsScreen(vm: AppsViewModel, back: () -> Unit) {
                         selected = target
                         perform { vm.repository.launch(target) }
                     },
-                    onLongClick = { selected = target },
-                    onLongClickLabel = "App options"
+                    onLongClick = { opened = target },
+                    onLongClickLabel = "App page"
                 )
             }
         }

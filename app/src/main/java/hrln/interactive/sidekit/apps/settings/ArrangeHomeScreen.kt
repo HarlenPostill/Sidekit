@@ -30,6 +30,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import hrln.interactive.sidekit.apps.apps.AppsRepository
 import hrln.interactive.sidekit.apps.sideport.registry.PortedApps
 import hrln.interactive.sidekit.design.action.ActionMotion
 import hrln.interactive.sidekit.design.action.ActionTone
@@ -40,6 +41,7 @@ import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.design.theme.drawFocusRing
 import hrln.interactive.sidekit.home.HomeArranger
 import hrln.interactive.sidekit.home.HomePreferences
+import hrln.interactive.sidekit.home.homeId
 import hrln.interactive.sidekit.navigation.SubApp
 
 /**
@@ -60,9 +62,21 @@ internal fun ArrangeHomeScreen(back: () -> Unit) {
     val prefs = remember(context) { SidekitPreferences(context) }
     val hidden = rememberHiddenApps(prefs)
     val ported by remember { PortedApps.get(context).apps }.collectAsStateWithLifecycle()
+    val repository = remember(context) { AppsRepository(context.applicationContext) }
+    val installed by remember { repository.apps }.collectAsStateWithLifecycle(emptyList())
     val subsById = remember(SubApp.entries) { SubApp.entries.associateBy { it.visibilityId() } }
     val portedById = remember(ported) { ported.associateBy { it.visibilityId() } }
-    val known = remember(subsById, portedById, hidden) { (subsById.keys + portedById.keys) - hidden }
+    // Only directly-pinned installed apps belong here; unpinned installed apps are not home entries.
+    val installedById = remember(installed, ported) {
+        val pinned = home.homeOrder.filter { it.startsWith(HomePreferences.INSTALLED_PREFIX) }.toSet()
+        val portedPackages = ported.mapTo(HashSet()) { it.packageName }
+        installed.map { it.homeId(context) to it }.toMap()
+            .filterKeys { it in pinned }
+            .filterValues { it.component.packageName !in portedPackages }
+    }
+    val known = remember(subsById, portedById, installedById, hidden) {
+        (subsById.keys + portedById.keys + installedById.keys) - hidden
+    }
     // Editing buffer, seeded from the stored prefs once. Nothing is written until commit() (Done).
     val arranger = remember(home, known) { HomeArranger(home, known) }
     val order = arranger.order
@@ -188,7 +202,7 @@ internal fun ArrangeHomeScreen(back: () -> Unit) {
             item { ArrangeHint() }
             val last = order.lastIndex
             itemsIndexed(order, key = { _, id -> id }) { index, id ->
-                val label = subsById[id]?.label ?: portedById[id]?.label ?: return@itemsIndexed
+                val label = subsById[id]?.label ?: portedById[id]?.label ?: installedById[id]?.label ?: return@itemsIndexed
                 val enabledUp = index > 0
                 val enabledDown = index < last
                 val isSelected = arranger.isSelected(id)
