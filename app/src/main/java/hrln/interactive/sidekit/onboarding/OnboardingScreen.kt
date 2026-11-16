@@ -20,6 +20,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import hrln.interactive.sidekit.apps.settings.*
 import hrln.interactive.sidekit.apps.sideport.registry.PortedApps
+import hrln.interactive.sidekit.design.action.ActionTone
 import hrln.interactive.sidekit.design.action.SideAction
 import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.input.*
@@ -94,6 +95,8 @@ internal fun OnboardingScreen(onFinish: () -> Unit, replay: Boolean = false) {
         titles[step],
         actions = buildList {
             if (step > 0 || replay) add(SideAction.back("back", "Back") { if (step > 0) move(step - 1) else onFinish() })
+            // The hide-apps step shares its list with Settings, so it shares the bar's Show all too.
+            if (step == 3 && hidden.isNotEmpty()) add(SideAction("showAll", "Show all", tone = ActionTone.Secondary) { prefs.hiddenApps = emptySet() })
             add(SideAction.forward("next", if (step == 6) "Finish" else "Next", { if (step == 6) finish() else move(step + 1) }))
         }
     ) { padding ->
