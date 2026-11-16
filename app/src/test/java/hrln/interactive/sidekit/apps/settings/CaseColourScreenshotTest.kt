@@ -9,6 +9,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import hrln.interactive.sidekit.apps.maps.MapsSampleData
 import hrln.interactive.sidekit.apps.maps.MapsScreen
 import hrln.interactive.sidekit.design.canvas.SidekitCanvas
+import hrln.interactive.sidekit.design.theme.CaseColour
 import hrln.interactive.sidekit.design.theme.SidekitColors
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 import org.junit.Rule
@@ -39,8 +40,8 @@ class CaseColourScreenshotTest {
             SidekitColors(
                 primaryA1 = accent,
                 primaryA2 = lerp(accent, Color.White, 0.12f),
-                primaryA3 = lerp(accent, Color.White, 0.24f),
-            ),
+                primaryA3 = lerp(accent, Color.White, 0.24f)
+            )
         )
     }
 

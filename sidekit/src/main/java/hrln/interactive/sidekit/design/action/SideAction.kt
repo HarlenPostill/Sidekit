@@ -16,6 +16,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.text.style.TextAlign
@@ -216,6 +217,26 @@ class ChromeState {
 
     /** Offers a key pressed while focus is in the action bar to the screen that asked for it. */
     internal fun barKey(event: KeyEvent): Boolean = barKeys.lastOrNull()?.invoke(event) ?: false
+
+    /** The first visible action button, registered by the action bar host. */
+    private var actionBarFocus: FocusRequester? = null
+
+    internal fun registerActionBarFocus(requester: FocusRequester) {
+        actionBarFocus = requester
+    }
+
+    internal fun unregisterActionBarFocus(requester: FocusRequester) {
+        if (actionBarFocus === requester) actionBarFocus = null
+    }
+
+    /**
+     * Moves focus to the first action button, if the action bar is showing one. Used by the
+     * Options hold so a long list does not have to be walked to reach the actions.
+     */
+    fun focusActionBar(): Boolean {
+        val requester = actionBarFocus ?: return false
+        return runCatching { requester.requestFocus() }.getOrDefault(false)
+    }
 
     internal val top: ChromePublisher? get() = publishers.lastOrNull()
 

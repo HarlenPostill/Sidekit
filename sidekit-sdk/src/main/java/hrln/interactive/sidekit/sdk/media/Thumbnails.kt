@@ -1,4 +1,4 @@
-package hrln.interactive.sidekit.apps.media
+package hrln.interactive.sidekit.sdk.media
 
 import android.app.ActivityManager
 import android.content.ContentResolver
@@ -28,12 +28,12 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.max
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
-import kotlin.math.max
-import kotlin.math.roundToInt
 
 /**
  * Small bitmaps for grids, rows and the action bar (photo tiles, video rows, album art), shared

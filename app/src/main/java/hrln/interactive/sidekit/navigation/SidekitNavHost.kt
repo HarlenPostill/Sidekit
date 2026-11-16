@@ -9,12 +9,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import hrln.interactive.sidekit.apps.apps.appsGraph
-import hrln.interactive.sidekit.apps.vault.vaultGraph
 import hrln.interactive.sidekit.apps.banking.bankingGraph
 import hrln.interactive.sidekit.apps.calculator.calculatorGraph
 import hrln.interactive.sidekit.apps.calendar.calendarGraph
-import hrln.interactive.sidekit.apps.clock.clockGraph
 import hrln.interactive.sidekit.apps.camera.cameraGraph
+import hrln.interactive.sidekit.apps.clock.clockGraph
 import hrln.interactive.sidekit.apps.compass.compassGraph
 import hrln.interactive.sidekit.apps.files.filesGraph
 import hrln.interactive.sidekit.apps.health.healthGraph
@@ -35,18 +34,26 @@ import hrln.interactive.sidekit.apps.sideticks.sideticksGraph
 import hrln.interactive.sidekit.apps.sideweather.sideweatherGraph
 import hrln.interactive.sidekit.apps.translate.translateGraph
 import hrln.interactive.sidekit.apps.tripplanning.tripPlanningGraph
+import hrln.interactive.sidekit.apps.vault.vaultGraph
 import hrln.interactive.sidekit.apps.video.videoGraph
 import hrln.interactive.sidekit.apps.webbrowser.webBrowserGraph
 import hrln.interactive.sidekit.launcher.LauncherRoute
+import hrln.interactive.sidekit.launcher.launch
 
 const val LAUNCHER_ROUTE = "launcher"
 
 /**
  * @param homeRequests incremented each time the Home button is pressed while SideKit is already
  * the foreground home app; every increment returns to the launcher.
+ * @param searchRequests incremented by the controller's Search button; returns to the launcher and
+ * opens app search.
  */
 @Composable
-fun SidekitNavHost(navController: NavHostController = rememberNavController(), homeRequests: Int = 0) {
+fun SidekitNavHost(
+    navController: NavHostController = rememberNavController(),
+    homeRequests: Int = 0,
+    searchRequests: Int = 0
+) {
     val back: () -> Unit = { navController.popBackStack() }
     LaunchedEffect(homeRequests) {
         if (homeRequests > 0) navController.popBackStack(LAUNCHER_ROUTE, inclusive = false)
@@ -65,14 +72,17 @@ fun SidekitNavHost(navController: NavHostController = rememberNavController(), h
         enterTransition = { EnterTransition.None },
         exitTransition = { ExitTransition.None },
         popEnterTransition = { EnterTransition.None },
-        popExitTransition = { ExitTransition.None },
+        popExitTransition = { ExitTransition.None }
     ) {
         composable(LAUNCHER_ROUTE) {
             val context = androidx.compose.ui.platform.LocalContext.current
             LauncherRoute(
+                searchRequest = searchRequests,
                 onOpenApp = { app -> navController.navigate(app.route) { launchSingleTop = true } },
                 // Ported apps open straight into their projection; if that can't start, Sideport explains why.
                 onOpenPorted = { app -> if (openPorted(context, app) != null) navController.navigate(SubApp.Sideport.route) { launchSingleTop = true } },
+                // Native apps are their own APK: launch them explicitly and pass this build's config authority.
+                onOpenNative = { app -> app.launch(context) }
             )
         }
         // Core SideKit apps
