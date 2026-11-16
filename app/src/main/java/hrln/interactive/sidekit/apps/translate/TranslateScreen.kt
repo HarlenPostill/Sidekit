@@ -20,8 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -233,12 +236,19 @@ private fun LanguageList(
     onChoose: (TranslateLanguage) -> Unit
 ) {
     val listState = rememberLazyListState()
+    // The row that opened the list is gone, so nothing holds focus and Up/Down would do nothing.
+    // Start on the ticked language; a frame is needed because LazyColumn composes rows during layout.
+    val selectedFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        runCatching { selectedFocus.requestFocus() }
+    }
     SidekitList(padding, state = listState) {
         itemsIndexed(TranslateLanguage.entries, key = { _, it -> it.name }) { index, language ->
             val active = language == selected
             SidekitItem(
                 language.label,
-                Modifier.listFade(listState, index),
+                Modifier.listFade(listState, index).then(if (active) Modifier.focusRequester(selectedFocus) else Modifier),
                 icon = if (active) SidekitIcon.Check else null,
                 colour = if (active) ItemColour.Secondary else ItemColour.Primary,
                 onClick = { onChoose(language) }
