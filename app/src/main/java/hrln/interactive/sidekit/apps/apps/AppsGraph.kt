@@ -43,6 +43,8 @@ internal fun AppsScreen(vm: AppsViewModel, back: () -> Unit) {
     var opened by remember { mutableStateOf<LaunchableApp?>(null) }
     var selected by remember { mutableStateOf<LaunchableApp?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
+    // Held above the app page's early return, so Back from the page lands where the list was.
+    val list = rememberLazyListState()
     fun perform(action: () -> Unit) {
         try {
             action()
@@ -75,7 +77,6 @@ internal fun AppsScreen(vm: AppsViewModel, back: () -> Unit) {
         return
     }
 
-    val list = rememberLazyListState()
     val options = selected?.let { app ->
         listOf(
             SideAction("info", "App info") { perform { vm.repository.info(app) } },
