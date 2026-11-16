@@ -104,15 +104,13 @@ internal fun toLauncherEntries(
     installedById: Map<String, LaunchableApp> = emptyMap()
 ): List<LauncherEntry> {
     // A package is either direct or Sideport, never both. If both somehow exist in storage, the
-    // Sideport entry wins, and only the first directly-pinned activity per package is rendered.
+    // Sideport entry wins. Each pinned activity is its own entry, as it is in the Apps list.
     val portedPackages = portedById.values.mapTo(HashSet()) { it.packageName }
-    val pinnedPackages = HashSet<String>()
     return ids.mapNotNull { id ->
         subsById[id]?.let { BuiltinEntry(it) }
             ?: portedById[id]?.let { PortedEntry(it) }
-            ?: installedById[id]?.takeIf {
-                it.component.packageName !in portedPackages && pinnedPackages.add(it.component.packageName)
-            }?.let { app -> InstalledEntry(app, id) }
+            ?: installedById[id]?.takeIf { it.component.packageName !in portedPackages }
+                ?.let { app -> InstalledEntry(app, id) }
     }
 }
 

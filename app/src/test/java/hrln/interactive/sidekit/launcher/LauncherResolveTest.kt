@@ -77,6 +77,20 @@ class LauncherResolveTest {
     }
 
     @Test
+    fun `two pinned activities of one package both resolve`() {
+        val home = HomePreferences(context)
+        val inbox = LaunchableApp(ComponentName("com.example.mail", "Inbox"), Process.myUserHandle(), "Inbox")
+        val withInbox = installedById + (inbox.homeId(context) to inbox)
+        val mail = installedApps[1]
+        home.pin(mail.homeId(context))
+        home.pin(inbox.homeId(context))
+
+        val pinnedKnown = subsById.keys + portedById.keys + mail.homeId(context) + inbox.homeId(context)
+        val entries = toLauncherEntries(home.homeOrderFor(pinnedKnown), subsById, portedById, withInbox)
+        assertEquals(listOf("Mail", "Inbox"), entries.filterIsInstance<InstalledEntry>().map { it.label })
+    }
+
+    @Test
     fun `a package can never resolve as both direct and Sideport`() {
         val home = HomePreferences(context)
         // The same package pinned directly and ported: the Sideport entry wins.
