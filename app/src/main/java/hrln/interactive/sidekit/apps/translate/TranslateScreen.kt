@@ -35,6 +35,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import hrln.interactive.sidekit.design.action.ActionMotion
 import hrln.interactive.sidekit.design.action.ActionTone
+import hrln.interactive.sidekit.design.action.LocalChrome
 import hrln.interactive.sidekit.design.action.SideAction
 import hrln.interactive.sidekit.design.components.ItemColour
 import hrln.interactive.sidekit.design.components.SidekitCard
@@ -72,7 +73,12 @@ fun NavGraphBuilder.translateGraph(nav: NavHostController) {
         val history by vm.history.collectAsStateWithLifecycle()
         val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), vm::microphonePermissionResult)
         TranslateSpeechEffects(vm, state.talking, state.microphonePermissionNeeded, state.source.language, state.target.language)
-        BackHandler(enabled = state.mode != TranslateMode.Translate) { vm.show(TranslateMode.Translate) }
+        val chrome = LocalChrome.current
+        // Registered after the canvas's own handler, so this one is asked first: close open options
+        // (History's "Clear history") before leaving the mode, as Back does everywhere else.
+        BackHandler(enabled = state.mode != TranslateMode.Translate) {
+            if (chrome?.optionsOpen == true) chrome.closeOptions() else vm.show(TranslateMode.Translate)
+        }
         val baseActions = when (state.mode) {
             TranslateMode.Translate -> if (state.translating) {
                 listOf(SideAction("translate", "Cancel", tone = ActionTone.Muted, onClick = vm::cancelTranslation))
