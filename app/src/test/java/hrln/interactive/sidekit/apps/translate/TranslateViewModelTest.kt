@@ -145,4 +145,27 @@ class TranslateViewModelTest {
         assertEquals(TranslatePane("English", "Hello"), vm.state.value.target)
         assertEquals(TranslateMode.Translate, vm.state.value.mode)
     }
+
+    @Test fun `changing the target mid-translation never shows the old pair's result`() {
+        val vm = TranslateViewModel(repository, FakeTranslator())
+        vm.setText("Hi")
+        vm.translate()
+        vm.pickLanguage(TranslateSide.Target)
+        vm.chooseLanguage(TranslateLanguage.German)
+        scope.testScheduler.runCurrent()
+        assertEquals("Hi [en->de]", vm.state.value.target.text)
+        assertEquals(listOf(TranslateLanguage.German), repository.history.value!!.map { it.target })
+    }
+
+    @Test fun `swapping mid-translation drops the old direction's result`() {
+        val vm = TranslateViewModel(repository, FakeTranslator())
+        vm.setText("Hi")
+        vm.translate()
+        vm.pickLanguage(TranslateSide.Source)
+        vm.chooseLanguage(TranslateLanguage.Chinese)
+        scope.testScheduler.runCurrent()
+        assertEquals(TranslatePane("Chinese", ""), vm.state.value.source)
+        assertEquals(TranslatePane("English", "Hi"), vm.state.value.target)
+        assertEquals(false, vm.state.value.translating)
+    }
 }

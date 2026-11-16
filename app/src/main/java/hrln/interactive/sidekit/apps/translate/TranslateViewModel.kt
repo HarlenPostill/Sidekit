@@ -127,6 +127,8 @@ class TranslateViewModel(
     }
 
     fun swapLanguages() {
+        // An in-flight result belongs to the old direction and would land in the wrong pane.
+        cancelTranslation()
         val oldSource = sourceLanguage
         sourceLanguage = targetLanguage
         targetLanguage = oldSource
@@ -168,8 +170,14 @@ class TranslateViewModel(
                 mode = TranslateMode.Translate
             )
         }
+        if (!changed) return
         val current = _state.value
-        if (changed && current.source.text.isNotBlank() && current.target.text.isNotEmpty()) translate()
+        // A translation still in flight is for the old pair: redo it too, or drop it if there's nothing to redo.
+        if (current.source.text.isNotBlank() && (current.target.text.isNotEmpty() || current.translating)) {
+            translate()
+        } else if (current.translating) {
+            cancelTranslation()
+        }
     }
 
     fun clear() {
