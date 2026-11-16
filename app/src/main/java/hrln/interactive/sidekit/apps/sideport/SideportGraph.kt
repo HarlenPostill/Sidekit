@@ -138,8 +138,12 @@ internal fun SideportHomeScreen(onHome: () -> Unit, onAdd: () -> Unit, onHub: (S
     }
     var message by remember { mutableStateOf<String?>(null) }
     val list = rememberLazyListState()
+    // Progress stays in the list until the install ends; only the outcome is a transient notice,
+    // so the notice's auto-dismiss can't reset the installer's status mid-install.
+    val progress = installMessage(install).takeIf { install is InstallStatus.Working || install is InstallStatus.Confirming }
+    val outcome = installMessage(install).takeIf { progress == null }
     val actions = withNotice(
-        message ?: installMessage(install),
+        message ?: outcome,
         {
             message = null
             ApkInstaller.clear()
@@ -150,6 +154,14 @@ internal fun SideportHomeScreen(onHome: () -> Unit, onAdd: () -> Unit, onHub: (S
     SidekitScaffold("Sideport", actions = actions) { padding ->
         SidekitList(padding, state = list) {
             var index = 0
+            progress?.let { text ->
+                val i = index++
+                item(key = "install") {
+                    SidekitCard(Modifier.fillMaxWidth().listFade(list, i)) {
+                        SidekitText(text, style = SidekitTheme.typography.label, maxLines = Int.MAX_VALUE)
+                    }
+                }
+            }
             if (apps.isEmpty()) {
                 val i = index++
                 item(key = "intro") {
