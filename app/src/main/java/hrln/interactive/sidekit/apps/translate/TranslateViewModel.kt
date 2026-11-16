@@ -142,9 +142,9 @@ class TranslateViewModel(
 
     fun language(side: TranslateSide): TranslateLanguage = if (side == TranslateSide.Source) sourceLanguage else targetLanguage
 
-    /** Opens the language list for [side]. */
+    /** Opens the language list for [side], dropping any pending microphone request. */
     fun pickLanguage(side: TranslateSide) {
-        _state.update { it.copy(mode = TranslateMode.Language, picking = side, talking = null) }
+        _state.update { it.copy(mode = TranslateMode.Language, picking = side, talking = null, microphonePermissionNeeded = false) }
     }
 
     /**

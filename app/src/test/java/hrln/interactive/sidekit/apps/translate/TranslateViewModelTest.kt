@@ -168,4 +168,12 @@ class TranslateViewModelTest {
         assertEquals(TranslatePane("English", "Hi"), vm.state.value.target)
         assertEquals(false, vm.state.value.translating)
     }
+
+    @Test fun `opening the list drops a pending microphone request`() {
+        val vm = TranslateViewModel(repository, FakeTranslator())
+        vm.onMic(TranslateSide.Source)
+        vm.pickLanguage(TranslateSide.Target)
+        assertEquals(false, vm.state.value.microphonePermissionNeeded)
+        assertNull(vm.state.value.talking)
+    }
 }
