@@ -1,4 +1,4 @@
-package hrln.interactive.sidekit.ui
+package hrln.interactive.sidekit.sdk.ui
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy

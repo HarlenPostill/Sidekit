@@ -21,8 +21,8 @@ import hrln.interactive.sidekit.design.action.undoBar
 import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.navigation.SubApp
-import hrln.interactive.sidekit.ui.UndoWindowLifecycle
-import hrln.interactive.sidekit.ui.rememberUndoWindow
+import hrln.interactive.sidekit.sdk.ui.UndoWindowLifecycle
+import hrln.interactive.sidekit.sdk.ui.rememberUndoWindow
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 

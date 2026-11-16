@@ -34,7 +34,7 @@ import hrln.interactive.sidekit.design.action.undoBar
 import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.icons.SidekitIcon
 import hrln.interactive.sidekit.navigation.SubApp
-import hrln.interactive.sidekit.ui.UndoWindowLifecycle
+import hrln.interactive.sidekit.sdk.ui.UndoWindowLifecycle
 import java.time.LocalTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
