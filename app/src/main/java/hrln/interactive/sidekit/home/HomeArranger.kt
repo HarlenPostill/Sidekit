@@ -27,12 +27,16 @@ class HomeArranger(private val home: HomePreferences, known: Iterable<String>) {
     private val appendedDefaults: List<String> = knownIds.filter { it !in builtinIds }
 
     private val initialOrder = home.homeOrderFor(knownIds)
+    private val defaultOrder = SubApp.entries.map { it.visibilityId() }.filter { it in knownIds } + appendedDefaults
 
     var order by mutableStateOf(initialOrder)
         private set
 
     /** True when the buffer differs from the order it was seeded with (Reset counts as a change). */
     val hasPendingChanges: Boolean get() = order != initialOrder
+
+    /** True when the buffer is already the built-in default, so Reset would do nothing. */
+    val isDefault: Boolean get() = order == defaultOrder
 
     /** The app currently selected for reordering, or null when not in selection mode. */
     var selected by mutableStateOf<String?>(null)
@@ -75,6 +79,24 @@ class HomeArranger(private val home: HomePreferences, known: Iterable<String>) {
 
     /** Writes the edited order to [HomePreferences]. The dock follows automatically. */
     fun commit() {
-        home.saveOrder(order)
+        home.saveOrder(withUnlistedPins(home.homeOrder, order))
+    }
+
+    /**
+     * A pinned installed app is a home entry only because its id is stored, so the buffer must not
+     * drop it just because this screen could not list it (hidden, or its package or profile is
+     * unavailable right now). Those ids keep their stored slot; the edited ids fill the rest.
+     */
+    private fun withUnlistedPins(stored: List<String>, edited: List<String>): List<String> {
+        val editedSet = edited.toSet()
+        val next = edited.iterator()
+        val merged = stored.mapNotNull { id ->
+            when {
+                id in editedSet -> if (next.hasNext()) next.next() else null
+                id.startsWith(HomePreferences.INSTALLED_PREFIX) -> id
+                else -> null
+            }
+        }
+        return merged + next.asSequence().toList()
     }
 }

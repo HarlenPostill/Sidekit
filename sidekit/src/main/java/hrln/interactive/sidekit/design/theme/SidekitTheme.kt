@@ -19,7 +19,7 @@ fun SidekitTheme(
     typography: SidekitTypography = SidekitTypography(),
     spacing: SidekitSpacing = SidekitSpacing(),
     shapes: SidekitShapes = SidekitShapes(),
-    content: @Composable () -> Unit,
+    content: @Composable () -> Unit
 ) {
     CompositionLocalProvider(
         LocalSidekitColors provides colors,
@@ -27,18 +27,22 @@ fun SidekitTheme(
         LocalSidekitSpacing provides spacing,
         LocalSidekitShapes provides shapes,
         LocalIndication provides SidekitIndication,
-        LocalTextSelectionColors provides TextSelectionColors(colors.primaryA2, colors.primaryA2.copy(alpha = 0.4f)),
-        content = content,
+        LocalTextSelectionColors provides TextSelectionColors(colors.emphasisA2, colors.emphasisA2.copy(alpha = 0.4f)),
+        content = content
     )
 }
 
 object SidekitTheme {
     val colors: SidekitColors
-        @Composable @ReadOnlyComposable get() = LocalSidekitColors.current
+        @Composable @ReadOnlyComposable
+        get() = LocalSidekitColors.current
     val typography: SidekitTypography
-        @Composable @ReadOnlyComposable get() = LocalSidekitTypography.current
+        @Composable @ReadOnlyComposable
+        get() = LocalSidekitTypography.current
     val spacing: SidekitSpacing
-        @Composable @ReadOnlyComposable get() = LocalSidekitSpacing.current
+        @Composable @ReadOnlyComposable
+        get() = LocalSidekitSpacing.current
     val shapes: SidekitShapes
-        @Composable @ReadOnlyComposable get() = LocalSidekitShapes.current
+        @Composable @ReadOnlyComposable
+        get() = LocalSidekitShapes.current
 }

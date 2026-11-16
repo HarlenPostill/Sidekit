@@ -7,8 +7,6 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -16,8 +14,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,13 +31,16 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
-import hrln.interactive.sidekit.apps.phonebook.Phonebook
 import hrln.interactive.sidekit.apps.phonebook.PhoneFormat
+import hrln.interactive.sidekit.apps.phonebook.Phonebook
 import hrln.interactive.sidekit.apps.phonebook.PhonebookRoutes
 import hrln.interactive.sidekit.apps.phonebook.rememberPermissionGate
 import hrln.interactive.sidekit.navigation.LAUNCHER_ROUTE
 import hrln.interactive.sidekit.navigation.SubApp
+import hrln.interactive.sidekit.ui.PauseUndoWhileHidden
+import hrln.interactive.sidekit.ui.UndoWindowLifecycle
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 private val ROOT = SubApp.Sidemessage.route
 private val INBOX = "$ROOT/inbox"
@@ -49,9 +52,8 @@ private val THREAD = "$ROOT/thread?$ARG_TO={$ARG_TO}&$ARG_THREAD={$ARG_THREAD}&$
 
 object SidemessageRoutes {
     /** A conversation with [addresses]. [threadId] if known (else found by address); [body] prefills the draft. */
-    fun conversation(addresses: List<String>, threadId: Long = -1L, body: String? = null): String =
-        "$ROOT/thread?$ARG_TO=${Uri.encode(addresses.joinToString(";"))}&$ARG_THREAD=$threadId" +
-            (body?.let { "&$ARG_BODY=${Uri.encode(it)}" } ?: "")
+    fun conversation(addresses: List<String>, threadId: Long = -1L, body: String? = null): String = "$ROOT/thread?$ARG_TO=${Uri.encode(addresses.joinToString(";"))}&$ARG_THREAD=$threadId" +
+        (body?.let { "&$ARG_BODY=${Uri.encode(it)}" } ?: "")
 
     val newMessage: String get() = NEW
 }
@@ -74,7 +76,7 @@ fun NavGraphBuilder.sidemessageGraph(nav: NavHostController) {
                 onMakeDefault = access::requestDefault,
                 onOpen = { nav.navigateFrom(entry, SidemessageRoutes.conversation(it.addresses, it.id)) },
                 onOpenPinned = { nav.navigateFrom(entry, SidemessageRoutes.conversation(listOf(it.address), it.thread?.id ?: -1L)) },
-                onNewMessage = { nav.navigateFrom(entry, NEW) },
+                onNewMessage = { nav.navigateFrom(entry, NEW) }
             )
         }
         composable(NEW) { entry ->
@@ -94,16 +96,26 @@ fun NavGraphBuilder.sidemessageGraph(nav: NavHostController) {
                     if (nav.currentBackStackEntry?.id == entry.id) nav.navigate(SidemessageRoutes.conversation(listOf(number))) { popUpTo(NEW) { inclusive = true } }
                 },
                 onBack = { nav.popFrom(entry) },
-                onAllowContacts = contacts::request,
+                onAllowContacts = contacts::request
             )
         }
         composable(
             THREAD,
             arguments = listOf(
-                navArgument(ARG_TO) { type = NavType.StringType; defaultValue = "" },
-                navArgument(ARG_THREAD) { type = NavType.LongType; defaultValue = -1L },
-                navArgument(ARG_BODY) { type = NavType.StringType; nullable = true; defaultValue = null },
-            ),
+                navArgument(ARG_TO) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument(ARG_THREAD) {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                },
+                navArgument(ARG_BODY) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
         ) { entry ->
             val context = LocalContext.current
             val args = entry.arguments
@@ -113,11 +125,14 @@ fun NavGraphBuilder.sidemessageGraph(nav: NavHostController) {
             val repo = remember { Sidemessage.repository(context) }
             val vm: ConversationViewModel = viewModel(
                 entry,
-                factory = remember(entry) { viewModelFactory { initializer { ConversationViewModel(repo, addresses, threadArg, body) } } },
+                factory = remember(entry) { viewModelFactory { initializer { ConversationViewModel(repo, addresses, threadArg, body) } } }
             )
             val access = rememberSmsAccess()
             LaunchedEffect(access.canRead, access.isDefault) { vm.setAccess(access.canRead, access.isDefault) }
             val state by vm.state.collectAsStateWithLifecycle()
+            // An open draft hides Undo (Send keeps its place), so the offer waits until the draft closes.
+            UndoWindowLifecycle(repo.undoWindow, vm::commitUndo)
+            PauseUndoWhileHidden(repo.undoWindow, shown = state.draft == null, pending = state.canUndo)
             val threadId by vm.threadId.collectAsState()
 
             // While this conversation is on screen its messages don't notify, and opening it clears them.
@@ -133,25 +148,49 @@ fun NavGraphBuilder.sidemessageGraph(nav: NavHostController) {
             var mmsNotice by remember { mutableStateOf<String?>(null) }
             val mmsScope = rememberCoroutineScope()
             val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-                if (uri != null) { attachment = uri; vm.startTyping(); mmsNotice = "MMS attachment selected · Send submits through your carrier" }
+                if (uri != null) {
+                    attachment = uri
+                    vm.startTyping()
+                    mmsNotice = "MMS attachment selected · Send submits through your carrier"
+                }
             }
             fun sendMms() {
                 val selected = attachment ?: return
                 if (mmsSending) return
                 mmsSending = true
                 mmsScope.launch {
-                    try { MmsTransport.send(context.applicationContext, addresses, state.draft.orEmpty(), selected); attachment = null; vm.stopTyping(); mmsNotice = "MMS submitted to carrier" }
-                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                    catch (e: Exception) { mmsNotice = e.message ?: "MMS could not be sent" }
-                    finally { mmsSending = false }
+                    try {
+                        MmsTransport.send(context.applicationContext, addresses, state.draft.orEmpty(), selected)
+                        attachment = null
+                        vm.stopTyping()
+                        mmsNotice = "MMS submitted to carrier"
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        mmsNotice = e.message ?: "MMS could not be sent"
+                    } finally {
+                        mmsSending = false
+                    }
                 }
             }
             // Sending asks for SMS permission at the moment it's first needed.
             var sendAfterGrant by remember { mutableStateOf(false) }
-            val sendGate = rememberPermissionGate(Manifest.permission.SEND_SMS) { ok -> if (ok && sendAfterGrant) { if (attachment != null) sendMms() else vm.send() }; sendAfterGrant = false }
+            val sendGate = rememberPermissionGate(Manifest.permission.SEND_SMS) { ok ->
+                if (ok && sendAfterGrant) {
+                    if (attachment != null) sendMms() else vm.send()
+                }
+                sendAfterGrant = false
+            }
 
-            val leave = { vm.stopTyping(); nav.popFrom(entry) }
-            BackHandler(enabled = state.draft != null) { vm.stopTyping(); attachment = null; mmsNotice = null }
+            val leave = {
+                vm.stopTyping()
+                nav.popFrom(entry)
+            }
+            BackHandler(enabled = state.draft != null) {
+                vm.stopTyping()
+                attachment = null
+                mmsNotice = null
+            }
             ConversationScreen(
                 state = state,
                 canBecomeDefault = access.roleAvailable,
@@ -160,14 +199,26 @@ fun NavGraphBuilder.sidemessageGraph(nav: NavHostController) {
                 onStartTyping = vm::startTyping,
                 onDraftChange = vm::updateDraft,
                 onSend = {
-                    if (sendGate.granted) { if (attachment != null) sendMms() else vm.send() } else { sendAfterGrant = true; sendGate.request() }
+                    if (sendGate.granted) {
+                        if (attachment != null) sendMms() else vm.send()
+                    } else {
+                        sendAfterGrant = true
+                        sendGate.request()
+                    }
                 },
                 onRetry = { message ->
-                    if (message.key.startsWith("m")) mmsScope.launch {
-                        try { MmsTransport.resend(context.applicationContext, Uri.parse("content://mms/${message.rowId}")); mmsNotice = "MMS resubmitted to carrier" }
-                        catch (e: Exception) { mmsNotice = e.message ?: "MMS could not be retried" }
+                    if (message.key.startsWith("m")) {
+                        mmsScope.launch {
+                            try {
+                                MmsTransport.resend(context.applicationContext, "content://mms/${message.rowId}".toUri())
+                                mmsNotice = "MMS resubmitted to carrier"
+                            } catch (e: Exception) {
+                                mmsNotice = e.message ?: "MMS could not be retried"
+                            }
+                        }
+                    } else {
+                        vm.retry(message)
                     }
-                    else vm.retry(message)
                 },
                 onAttach = { if (access.isDefault) picker.launch(arrayOf("image/*", "video/*", "audio/*")) else access.requestDefault() },
                 attachmentNotice = if (mmsSending) "Sending MMS…" else mmsNotice,
@@ -177,7 +228,7 @@ fun NavGraphBuilder.sidemessageGraph(nav: NavHostController) {
                 onCall = addresses.singleOrNull()?.let { number -> { nav.navigateFrom(entry, PhonebookRoutes.dial(number)) } },
                 onMakeDefault = access::requestDefault,
                 onDelete = vm::delete,
-                onUndoDelete = vm::undoDelete,
+                onUndoDelete = vm::undoDelete
             )
         }
     }
@@ -249,6 +300,7 @@ object IncomingLinks {
                 val addresses = intent.getStringArrayExtra(EXTRA_ADDRESSES)?.toList().orEmpty()
                 if (addresses.isEmpty()) null else SidemessageRoutes.conversation(addresses, intent.getLongExtra(EXTRA_THREAD, -1L))
             }
+
             Intent.ACTION_SENDTO, Intent.ACTION_VIEW -> {
                 val data = intent.data ?: return null
                 if (data.scheme?.lowercase() !in SMS_SCHEMES) return null
@@ -258,6 +310,7 @@ object IncomingLinks {
                         ?.firstOrNull { it.substringBefore('=') == "body" }?.substringAfter('=')?.let(Uri::decode)
                 if (addresses.isEmpty()) NEW else SidemessageRoutes.conversation(addresses, body = body)
             }
+
             else -> null
         }
     }
@@ -300,6 +353,6 @@ private fun NavBackStackEntry.sidemessageViewModel(nav: NavHostController): Side
         parent,
         factory = remember(context) {
             viewModelFactory { initializer { SidemessageViewModel(Sidemessage.repository(context), Phonebook.source(context)) } }
-        },
+        }
     )
 }
