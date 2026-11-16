@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -47,7 +46,6 @@ class TranslateViewModel(
     private var translateJob: Job? = null
     private var sourceLanguage = TranslateLanguage.English
     private var targetLanguage = TranslateLanguage.Chinese
-    private var errorJob: Job? = null
 
     fun onMic(side: TranslateSide) {
         val wasTalking = _state.value.talking == side
@@ -207,22 +205,15 @@ class TranslateViewModel(
     }
 
     fun say(message: String) {
-        errorJob?.cancel()
         _state.update { it.copy(error = message) }
-        errorJob = viewModelScope.launch {
-            delay(3_000)
-            _state.update { it.copy(error = null) }
-        }
     }
 
     fun dismissError() {
-        errorJob?.cancel()
         _state.update { it.copy(error = null) }
     }
 
     override fun onCleared() {
         translateJob?.cancel()
-        errorJob?.cancel()
     }
 }
 

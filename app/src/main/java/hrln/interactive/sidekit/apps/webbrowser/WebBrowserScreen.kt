@@ -57,7 +57,10 @@ import hrln.interactive.sidekit.apps.everyday.EverydayContent
 import hrln.interactive.sidekit.apps.everyday.dualArrowActions
 import hrln.interactive.sidekit.design.action.ActionMotion
 import hrln.interactive.sidekit.design.action.ActionTone
+import hrln.interactive.sidekit.design.action.NoticeKind
 import hrln.interactive.sidekit.design.action.SideAction
+import hrln.interactive.sidekit.design.action.undoBar
+import hrln.interactive.sidekit.design.action.withNotice
 import hrln.interactive.sidekit.design.components.ItemColour
 import hrln.interactive.sidekit.design.components.SidekitCard
 import hrln.interactive.sidekit.design.components.SidekitItem
@@ -74,6 +77,7 @@ import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.navigation.SubApp
 import hrln.interactive.sidekit.ui.SidekitPreviewFrame
 import hrln.interactive.sidekit.ui.SidephonePreview
+import hrln.interactive.sidekit.ui.UndoWindowLifecycle
 
 data class WebPage(val address: String, val site: String, val heading: String, val body: String, val link: String)
 
@@ -84,7 +88,7 @@ object WebBrowserSampleData {
         site = "EXAMPLE.COM",
         heading = "A quieter web.",
         body = "Read, explore, and find what you need. One page at a time.",
-        link = "Start reading →",
+        link = "Start reading →"
     )
 
     /** What a new tab shows: the mock's tile, as the browser's own start page. */
@@ -93,7 +97,7 @@ object WebBrowserSampleData {
         site = "SIDEKIT",
         heading = "A quieter web.",
         body = "Type an address or a search with the keypad, then Done.",
-        link = "Search →",
+        link = "Search →"
     )
 }
 
@@ -106,6 +110,7 @@ fun NavGraphBuilder.webBrowserGraph(nav: NavHostController) {
     composable(SubApp.WebBrowser.route) {
         val context = LocalContext.current.applicationContext
         val vm: BrowserViewModel = viewModel(factory = remember(context) { viewModelFactory { initializer { BrowserViewModel(Browser.repository(context)) } } })
+        UndoWindowLifecycle(vm.undoWindow, vm::commitUndo)
         BrowserRoute(vm, onExit = { nav.popBackStack() })
     }
 }
@@ -115,7 +120,7 @@ fun NavGraphBuilder.webBrowserGraph(nav: NavHostController) {
 fun WebBrowserScreen(page: WebPage, onTabs: () -> Unit = {}, onSearch: () -> Unit = {}) {
     SidekitScaffold(
         title = "Web browser",
-        actions = dualArrowActions("Tabs", "Search", onTabs, onSearch),
+        actions = dualArrowActions("Tabs", "Search", onTabs, onSearch)
     ) { padding ->
         EverydayContent(padding) {
             SidekitItem("Address", Modifier.height(CompactRowHeight), secondary = page.address)
@@ -130,7 +135,7 @@ private fun StartTile(page: WebPage, onLink: () -> Unit, modifier: Modifier = Mo
     SidekitTile(modifier.fillMaxWidth().height(308.dp), contentAlignment = Alignment.TopStart) {
         Column(
             Modifier.padding(start = SidekitTheme.spacing.itemPadding, end = SidekitTheme.spacing.itemPadding, top = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             SidekitText(page.site, style = SidekitTheme.typography.small, color = SidekitTheme.colors.surfaceA6)
             SidekitText(page.heading, style = SidekitTheme.typography.headline)
@@ -141,15 +146,7 @@ private fun StartTile(page: WebPage, onLink: () -> Unit, modifier: Modifier = Mo
     }
 }
 
-/** The bar for a moment after something happened (download started, link has no app). */
-private fun withNotice(notice: String?, onDismiss: () -> Unit, actions: List<SideAction>): List<SideAction> =
-    if (notice == null) actions else listOf(SideAction("notice", notice, tone = ActionTone.Muted, dense = true, motion = ActionMotion.Up, onClick = onDismiss))
-
-private fun withUndo(undo: BrowserUndo?, onUndo: () -> Unit, main: SideAction): List<SideAction> =
-    if (undo == null) listOf(main) else listOf(
-        SideAction("undo", "Undo", SidekitIcon.Undo, tone = ActionTone.Muted, motion = ActionMotion.Up, contentDescription = "Undo", onClick = onUndo),
-        main,
-    )
+private fun withUndo(undo: BrowserUndo?, onUndo: () -> Unit, continueWith: SideAction): List<SideAction> = undoBar(continueWith = continueWith, undo = undo?.let { SideAction.undo(contentDescription = "Undo", onClick = onUndo) })
 
 /**
  * The browser. One route; the page, tab list, bookmarks and history are modes of it so the live
@@ -161,6 +158,7 @@ fun BrowserRoute(vm: BrowserViewModel, onExit: () -> Unit) {
     val data = vm.data.collectAsStateWithLifecycle().value
     val mode by vm.mode.collectAsStateWithLifecycle()
     val notice by vm.notice.collectAsStateWithLifecycle()
+    val noticeKind by vm.noticeKind.collectAsStateWithLifecycle()
     val undo by vm.undo.collectAsStateWithLifecycle()
     val generation by vm.generation.collectAsStateWithLifecycle()
     if (data == null) {
@@ -184,25 +182,31 @@ fun BrowserRoute(vm: BrowserViewModel, onExit: () -> Unit) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (mode == BrowserMode.Page) engine?.resume() }
     LaunchedEffect(engine, mode) { if (mode == BrowserMode.Page) engine?.resume() else engine?.pause() }
 
-    val showTabs = { engine?.captureThumbnail(); vm.show(BrowserMode.Tabs) }
+    val showTabs = {
+        engine?.captureThumbnail()
+        vm.show(BrowserMode.Tabs)
+    }
     when (mode) {
         BrowserMode.Page -> PageScreen(
             data = data,
             tab = tab,
             engine = engine,
             notice = notice,
+            noticeKind = noticeKind,
             onGo = vm::go,
             onTabs = showTabs,
             onExit = onExit,
             onBookmark = { engine?.page?.let { vm.toggleBookmark(it.url, it.title) } },
             onTextZoom = vm::cycleTextZoom,
             onOpen = vm::open,
-            onDismissNotice = vm::dismissNotice,
+            onDismissNotice = vm::dismissNotice
         )
+
         BrowserMode.Tabs -> TabsScreen(
             data = data,
             undo = undo,
             notice = notice,
+            noticeKind = noticeKind,
             onBack = { vm.show(BrowserMode.Page) },
             onSelect = vm::selectTab,
             onClose = vm::closeTab,
@@ -217,24 +221,27 @@ fun BrowserRoute(vm: BrowserViewModel, onExit: () -> Unit) {
                     vm.say("No downloads app on this phone")
                 }
             },
-            onDismissNotice = vm::dismissNotice,
+            onDismissNotice = vm::dismissNotice
         )
+
         BrowserMode.Bookmarks -> BookmarksScreen(
             bookmarks = data.bookmarks,
             undo = undo,
             onBack = { vm.show(BrowserMode.Tabs) },
             onOpen = { vm.open(it.url) },
             onRemove = { vm.removeBookmark(it.url) },
-            onUndo = vm::undo,
+            onUndo = vm::undo
         )
+
         BrowserMode.History -> HistoryScreen(
             history = data.history,
             notice = notice,
+            noticeKind = noticeKind,
             onBack = { vm.show(BrowserMode.Tabs) },
             onOpen = { vm.open(it.url) },
             onRemove = vm::removeVisit,
             onClear = vm::clearHistory,
-            onDismissNotice = vm::dismissNotice,
+            onDismissNotice = vm::dismissNotice
         )
     }
 }
@@ -251,13 +258,14 @@ private fun PageScreen(
     tab: BrowserTab,
     engine: BrowserEngine?,
     notice: String?,
+    noticeKind: NoticeKind = NoticeKind.Other,
     onGo: (String) -> Unit,
     onTabs: () -> Unit,
     onExit: () -> Unit,
     onBookmark: () -> Unit,
     onTextZoom: () -> Unit,
     onOpen: (String) -> Unit,
-    onDismissNotice: () -> Unit,
+    onDismissNotice: () -> Unit
 ) {
     val page = engine?.page
     val focus = remember { FocusRequester() }
@@ -274,8 +282,13 @@ private fun PageScreen(
     }
     BackHandler {
         when {
-            editing -> { typed = ""; focusManager.clearFocus() }
+            editing -> {
+                typed = ""
+                focusManager.clearFocus()
+            }
+
             canGoBack -> engine?.goBack()
+
             else -> onExit()
         }
     }
@@ -283,27 +296,34 @@ private fun PageScreen(
     val actions = when {
         // With a touch keyboard (T9 has its own bar while typing).
         editing -> listOf(
-            SideAction("back", "Cancel", tone = ActionTone.Muted, motion = ActionMotion.Up) { typed = ""; focusManager.clearFocus() },
-            SideAction("forward", "Go", SidekitIcon.ArrowRightAlt, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = "Go", onClick = submit),
+            SideAction.cancel(icon = null, motion = ActionMotion.Up) {
+                typed = ""
+                focusManager.clearFocus()
+            },
+            SideAction("forward", "Go", SidekitIcon.ArrowRightAlt, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = "Go", onClick = submit)
         )
+
         else -> listOfNotNull(
             if (canGoBack) SideAction.square("pageback", SidekitIcon.ArrowLeftAlt, "Back a page", { engine?.goBack() }, motion = ActionMotion.Back) else null,
             if (canGoBack) SideAction("back", "Tabs", contentDescription = "Tabs", onClick = onTabs) else SideAction.back("back", "Tabs", onTabs),
-            SideAction.forward("forward", "Search", { focus.requestFocus() }),
+            SideAction.forward("forward", "Search", { focus.requestFocus() })
         )
     }
     val url = page?.url ?: tab.url
     val options = buildList {
         if (page?.canGoForward == true) add(SideAction.square("fwd", SidekitIcon.ArrowRightAlt, "Forward a page", { engine.goForward() }))
         if (engine != null) {
-            if (page?.loading == true) add(SideAction("reload", "Stop", SidekitIcon.Close) { engine.stop() })
-            else add(SideAction("reload", "Reload", contentDescription = "Reload page") { engine.reload() })
+            if (page?.loading == true) {
+                add(SideAction("reload", "Stop", SidekitIcon.Close) { engine.stop() })
+            } else {
+                add(SideAction("reload", "Reload", contentDescription = "Reload page") { engine.reload() })
+            }
             add(SideAction("bookmark", if (data.isBookmarked(url)) "Saved" else "Save", SidekitIcon.Bookmark, contentDescription = if (data.isBookmarked(url)) "Remove bookmark" else "Bookmark page", onClick = onBookmark))
         }
         add(SideAction("zoom", "Aa ${data.textZoom}%", contentDescription = "Text size ${data.textZoom} percent", onClick = onTextZoom))
     }
 
-    SidekitScaffold(title = "Web browser", actions = withNotice(notice, onDismissNotice, actions), options = options) { padding ->
+    SidekitScaffold(title = "Web browser", actions = withNotice(notice, onDismissNotice, actions, noticeKind), options = options) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             AddressRow(
                 typed = typed,
@@ -313,7 +333,7 @@ private fun PageScreen(
                 focus = focus,
                 editing = editing,
                 onEditing = { editing = it },
-                onDone = submit,
+                onDone = submit
             )
             Spacer(Modifier.height(SidekitTheme.spacing.itemOuterGap))
             if (engine != null) {
@@ -324,7 +344,7 @@ private fun PageScreen(
                         .fillMaxWidth()
                         .clip(SidekitTheme.shapes.item)
                         .background(SidekitTheme.colors.light)
-                        .testTag(WebBrowserTags.PAGE),
+                        .testTag(WebBrowserTags.PAGE)
                 )
             } else {
                 StartPage(data.bookmarks, onSearch = { focus.requestFocus() }, onOpen = onOpen, modifier = Modifier.weight(1f))
@@ -347,9 +367,9 @@ private fun AddressRow(
     focus: FocusRequester,
     editing: Boolean,
     onEditing: (Boolean) -> Unit,
-    onDone: () -> Unit,
+    onDone: () -> Unit
 ) {
-    val progressColor = SidekitTheme.colors.primaryA1
+    val progressColor = SidekitTheme.colors.emphasisA1
     SidekitTile(
         Modifier
             .fillMaxWidth()
@@ -361,12 +381,12 @@ private fun AddressRow(
                 drawRect(progressColor.copy(alpha = 0.45f), size = Size(size.width * f, size.height))
             },
         onClick = { focus.requestFocus() },
-        contentAlignment = Alignment.CenterStart,
+        contentAlignment = Alignment.CenterStart
     ) {
         Row(
             Modifier.padding(horizontal = SidekitTheme.spacing.itemPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SidekitTheme.spacing.itemContentGap),
+            horizontalArrangement = Arrangement.spacedBy(SidekitTheme.spacing.itemContentGap)
         ) {
             if (!editing) SidekitText("Address")
             SidekitTextField(
@@ -380,7 +400,7 @@ private fun AddressRow(
                 focusRequester = focus,
                 focusOnKeypad = true,
                 singleLine = true,
-                onDone = onDone,
+                onDone = onDone
             )
         }
     }
@@ -406,6 +426,7 @@ private fun TabsScreen(
     data: BrowserData,
     undo: BrowserUndo?,
     notice: String?,
+    noticeKind: NoticeKind = NoticeKind.Other,
     onBack: () -> Unit,
     onSelect: (Long) -> Unit,
     onClose: (Long) -> Unit,
@@ -414,15 +435,16 @@ private fun TabsScreen(
     onBookmarks: () -> Unit,
     onHistory: () -> Unit,
     onDownloads: () -> Unit,
-    onDismissNotice: () -> Unit,
+    onDismissNotice: () -> Unit
 ) {
     BackHandler(onBack = onBack)
+    val newTab = SideAction("forward", "New tab", SidekitIcon.Add, iconAtEnd = true, motion = ActionMotion.Forward, onClick = onNew)
     val main = if (undo != null) {
-        withUndo(undo, onUndo, SideAction("forward", "New tab", SidekitIcon.Add, iconAtEnd = true, motion = ActionMotion.Forward, onClick = onNew))
+        withUndo(undo, onUndo, continueWith = newTab)
     } else {
-        listOf(SideAction.back("back", "Page", onBack), SideAction("forward", "New tab", SidekitIcon.Add, iconAtEnd = true, motion = ActionMotion.Forward, onClick = onNew))
+        listOf(SideAction.back("back", "Page", onBack), newTab)
     }
-    SidekitScaffold(title = if (data.tabs.size == 1) "1 tab" else "${data.tabs.size} tabs", actions = withNotice(notice, onDismissNotice, main)) { padding ->
+    SidekitScaffold(title = if (data.tabs.size == 1) "1 tab" else "${data.tabs.size} tabs", actions = withNotice(notice, onDismissNotice, main, noticeKind)) { padding ->
         val listState = rememberLazyListState()
         val swipe = rememberSwipeRevealGroup()
         SidekitList(padding, state = listState) {
@@ -432,14 +454,14 @@ private fun TabsScreen(
                     group = swipe,
                     onDelete = { onClose(t.id) },
                     modifier = Modifier.animateItem().listFade(listState, i),
-                    deleteLabel = "Close ${t.label}",
+                    deleteLabel = "Close ${t.label}"
                 ) {
                     SidekitItem(
                         t.label,
                         secondary = BrowserUrls.host(t.url).takeIf { it != t.label },
                         colour = if (t.id == data.currentTabId) ItemColour.Secondary else ItemColour.Primary,
                         onClick = { onSelect(t.id) },
-                        leading = { TabThumbnail(t.id) },
+                        leading = { TabThumbnail(t.id) }
                     )
                 }
             }
@@ -468,10 +490,10 @@ private fun BookmarksScreen(
     onBack: () -> Unit,
     onOpen: (Bookmark) -> Unit,
     onRemove: (Bookmark) -> Unit,
-    onUndo: () -> Unit,
+    onUndo: () -> Unit
 ) {
     BackHandler(onBack = onBack)
-    SidekitScaffold(title = "Bookmarks", actions = withUndo(undo, onUndo, SideAction.back("back", "Tabs", onBack))) { padding ->
+    SidekitScaffold(title = "Bookmarks", actions = withUndo(undo, onUndo, continueWith = SideAction.back("back", "Tabs", onBack))) { padding ->
         val listState = rememberLazyListState()
         val swipe = rememberSwipeRevealGroup()
         SidekitList(padding, state = listState) {
@@ -489,26 +511,30 @@ private fun BookmarksScreen(
 private fun HistoryScreen(
     history: List<Visit>,
     notice: String?,
+    noticeKind: NoticeKind = NoticeKind.Other,
     onBack: () -> Unit,
     onOpen: (Visit) -> Unit,
     onRemove: (Visit) -> Unit,
     onClear: () -> Unit,
-    onDismissNotice: () -> Unit,
+    onDismissNotice: () -> Unit
 ) {
     var confirming by rememberSaveable { mutableStateOf(false) }
     BackHandler { if (confirming) confirming = false else onBack() }
     val actions = if (confirming) {
         listOf(
-            SideAction("back", "Cancel", tone = ActionTone.Muted, motion = ActionMotion.Up, contentDescription = "Keep history") { confirming = false },
-            SideAction("forward", "Clear", SidekitIcon.DeleteForever, tone = ActionTone.Destructive, weight = 1.2f, motion = ActionMotion.Up, contentDescription = "Confirm clear history") { confirming = false; onClear() },
+            SideAction.cancel(icon = null, motion = ActionMotion.Up, contentDescription = "Keep history") { confirming = false },
+            SideAction("forward", "Clear", SidekitIcon.DeleteForever, tone = ActionTone.Destructive, weight = 1.2f, motion = ActionMotion.Up, contentDescription = "Confirm clear history") {
+                confirming = false
+                onClear()
+            }
         )
     } else {
         listOf(SideAction.back("back", "Tabs", onBack))
     }
     SidekitScaffold(
         title = "History",
-        actions = withNotice(notice, onDismissNotice, actions),
-        options = if (history.isNotEmpty()) listOf(SideAction("clear", "Clear history", SidekitIcon.DeleteForever, tone = ActionTone.Destructive) { confirming = true }) else emptyList(),
+        actions = withNotice(notice, onDismissNotice, actions, noticeKind),
+        options = if (history.isNotEmpty()) listOf(SideAction("clear", "Clear history", SidekitIcon.DeleteForever, tone = ActionTone.Destructive) { confirming = true }) else emptyList()
     ) { padding ->
         val listState = rememberLazyListState()
         val swipe = rememberSwipeRevealGroup()
