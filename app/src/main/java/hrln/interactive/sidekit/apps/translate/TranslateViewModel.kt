@@ -153,13 +153,14 @@ class TranslateViewModel(
     fun chooseLanguage(language: TranslateLanguage) {
         val side = _state.value.picking
         val changed = language != language(side)
-        if (side == TranslateSide.Source) {
-            if (language == targetLanguage) targetLanguage = sourceLanguage
-            sourceLanguage = language
-        } else {
-            if (language == sourceLanguage) sourceLanguage = targetLanguage
-            targetLanguage = language
+        val other = if (side == TranslateSide.Source) targetLanguage else sourceLanguage
+        if (language == other) {
+            // A swap moves each text with its language, so nothing needs translating again.
+            swapLanguages()
+            show(TranslateMode.Translate)
+            return
         }
+        if (side == TranslateSide.Source) sourceLanguage = language else targetLanguage = language
         _state.update {
             it.copy(
                 source = it.source.copy(language = sourceLanguage.label),

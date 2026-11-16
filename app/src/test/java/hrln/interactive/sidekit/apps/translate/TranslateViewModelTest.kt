@@ -132,4 +132,17 @@ class TranslateViewModelTest {
         scope.testScheduler.runCurrent()
         assertEquals("Hi [en->fr]", vm.state.value.target.text)
     }
+
+    @Test fun `a swap from the list moves each text with its language`() {
+        val vm = TranslateViewModel(repository, FakeTranslator())
+        vm.setText("Hello")
+        vm.translate()
+        scope.testScheduler.runCurrent()
+        vm.pickLanguage(TranslateSide.Target)
+        vm.chooseLanguage(TranslateLanguage.English)
+        scope.testScheduler.runCurrent()
+        assertEquals(TranslatePane("Chinese", "Hello [en->zh-CN]"), vm.state.value.source)
+        assertEquals(TranslatePane("English", "Hello"), vm.state.value.target)
+        assertEquals(TranslateMode.Translate, vm.state.value.mode)
+    }
 }
