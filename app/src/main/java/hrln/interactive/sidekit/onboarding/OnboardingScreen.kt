@@ -1,7 +1,6 @@
 package hrln.interactive.sidekit.onboarding
 
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -16,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import hrln.interactive.sidekit.apps.settings.*
@@ -77,7 +77,7 @@ internal fun OnboardingScreen(onFinish: () -> Unit, replay: Boolean = false) {
         if (entry.intent != null) {
             open(entry.intent.invoke(context))
         } else if (entry.title in requested) {
-            open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
+            open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri()))
         } else {
             requested.add(entry.title)
             permissionResult.launch(entry.permissions.toTypedArray())

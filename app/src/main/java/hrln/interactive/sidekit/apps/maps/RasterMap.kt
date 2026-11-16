@@ -21,6 +21,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.unit.*
+import androidx.core.net.toUri
 import hrln.interactive.sidekit.design.components.*
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.design.theme.drawFocusRing
@@ -166,7 +167,7 @@ fun RasterMap(center: Place, current: Place?, destination: Place?, zoomChange: I
         Box(
             Modifier.align(androidx.compose.ui.Alignment.BottomEnd).background(colors.surfaceA1).clickable {
                 try {
-                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.openstreetmap.org/copyright")))
+                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, "https://www.openstreetmap.org/copyright".toUri()))
                 } catch (_: android.content.ActivityNotFoundException) { }
             }
         ) {

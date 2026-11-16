@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -209,7 +210,7 @@ fun NavGraphBuilder.sidemessageGraph(nav: NavHostController) {
                     if (message.key.startsWith("m")) {
                         mmsScope.launch {
                             try {
-                                MmsTransport.resend(context.applicationContext, Uri.parse("content://mms/${message.rowId}"))
+                                MmsTransport.resend(context.applicationContext, "content://mms/${message.rowId}".toUri())
                                 mmsNotice = "MMS resubmitted to carrier"
                             } catch (e: Exception) {
                                 mmsNotice = e.message ?: "MMS could not be retried"

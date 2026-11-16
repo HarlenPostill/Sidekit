@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
@@ -253,7 +254,7 @@ internal fun SideportAddScreen(onDone: () -> Unit) {
     }
     fun installApk() {
         if (!ApkInstaller.canInstall(context)) {
-            context.openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+            context.openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:${context.packageName}".toUri())
             message = "Allow Sidekit to install apps, then choose Install APK again."
         } else {
             picker.launch(arrayOf("application/vnd.android.package-archive", "application/zip", "application/octet-stream"))
@@ -341,7 +342,7 @@ internal fun SideportHubScreen(pkg: String, onBack: () -> Unit, onChat: (String)
         onChat = onChat,
         onPlayer = onPlayer,
         onBridge = { context.openSettings(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) },
-        onInfo = { context.openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg")) },
+        onInfo = { context.openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$pkg".toUri()) },
         onMode = { ported.setMode(pkg, if (app.mode == PortMode.Projected) PortMode.Original else PortMode.Projected) },
         onDismissMessage = { message = null },
         onAsk = { confirming = it },
@@ -350,7 +351,7 @@ internal fun SideportHubScreen(pkg: String, onBack: () -> Unit, onChat: (String)
             ported.remove(pkg)
             onBack()
         },
-        onUninstall = { context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$pkg")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        onUninstall = { context.startActivity(Intent(Intent.ACTION_DELETE, "package:$pkg".toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     )
 }
 

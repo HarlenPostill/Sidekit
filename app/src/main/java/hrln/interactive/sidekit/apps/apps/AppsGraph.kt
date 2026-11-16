@@ -1,7 +1,6 @@
 package hrln.interactive.sidekit.apps.apps
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Process
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -9,6 +8,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -84,7 +84,7 @@ internal fun AppsScreen(vm: AppsViewModel, back: () -> Unit) {
             SideAction.delete("uninstall", "Uninstall") {
                 perform {
                     context.startActivity(
-                        Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.component.packageName}"))
+                        Intent(Intent.ACTION_DELETE, "package:${app.component.packageName}".toUri())
                             .putExtra(Intent.EXTRA_USER, app.user)
                     )
                 }
