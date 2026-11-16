@@ -23,7 +23,7 @@ class HomeArranger(private val home: HomePreferences, known: Iterable<String>) {
     private val knownIds = known.toList()
     private val builtinIds = SubApp.entries.map { it.visibilityId() }.toSet()
 
-    /** Ported (or otherwise freshly-seen) ids that aren't part of the built-in default list. */
+    /** Ported, native, or otherwise freshly-seen ids that aren't part of the built-in default list. */
     private val appendedDefaults: List<String> = knownIds.filter { it !in builtinIds }
 
     private val initialOrder = home.homeOrderFor(knownIds)

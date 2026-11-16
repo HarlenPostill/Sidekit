@@ -1,4 +1,4 @@
-package hrln.interactive.sidekit.ui
+package hrln.interactive.sidekit.sdk.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -22,7 +22,7 @@ const val UNDO_WINDOW_MS = 5_000L
  * One undo offer, measured in visible time.
  *
  * The five seconds are a budget of attention, not of wall clock: [pause] when the screen leaves
- * the foreground and [resume] when it comes back, so leaving Sidekit mid-window does not silently
+ * the foreground and [resume] when it comes back, so leaving the app mid-window does not silently
  * burn the offer, and returning shows the time that is actually left. Leaving the screen for good
  * is a commit, not a pause: cancel the window and finalise the deletion ([cancel]).
  */

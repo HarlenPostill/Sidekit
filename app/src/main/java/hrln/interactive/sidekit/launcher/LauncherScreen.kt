@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -66,9 +67,9 @@ import hrln.interactive.sidekit.ui.SidephonePreview
 const val GRID_COLUMNS = 4
 
 /**
- * A launcher entry resolved from the home order: either a built-in Sidekit app or a ported app.
- * Kept as one ordered list so both the grid and the list render from the same `HomePreferences`
- * order (Phase 0 decision) and ported apps can sit anywhere the user moved them.
+ * A launcher entry resolved from the home order: a built-in Sidekit app, a ported app or an app
+ * installed as its own Sidekit-native APK. Kept as one ordered list so all three render from the
+ * same `HomePreferences` order and any of them can sit anywhere the user moved it.
  */
 sealed interface LauncherEntry {
     val id: String
@@ -92,24 +93,34 @@ class InstalledEntry(val app: LaunchableApp, override val id: String) : Launcher
     override val label: String get() = app.label
 }
 
+/** An app installed as its own Sidekit-native APK. */
+class NativeAppEntry(val app: NativeApp) : LauncherEntry {
+    override val id: String get() = app.visibilityId
+    override val label: String get() = app.label
+}
+
 /**
- * Maps ordered ids to renderable entries against the known builtin, ported and installed maps,
- * dropping any id that is not visible to the launcher (unknown, uninstalled, or superseded by a
- * Sideport entry for the same package).
+ * Maps ordered ids to renderable entries against the known builtin, ported, native and installed
+ * maps, dropping any id that is not visible to the launcher (unknown, uninstalled, or superseded by
+ * a Sideport or native entry for the same package).
  */
 internal fun toLauncherEntries(
     ids: List<String>,
     subsById: Map<String, SubApp>,
     portedById: Map<String, PortedApp>,
-    installedById: Map<String, LaunchableApp> = emptyMap()
+    installedById: Map<String, LaunchableApp> = emptyMap(),
+    nativeById: Map<String, NativeApp> = emptyMap()
 ): List<LauncherEntry> {
-    // A package is either direct or Sideport, never both. If both somehow exist in storage, the
-    // Sideport entry wins. Each pinned activity is its own entry, as it is in the Apps list.
+    // A package is direct, native or Sideport, never more than one. If several somehow exist in
+    // storage, Sideport wins, then native. Each pinned activity is its own entry, as it is in the
+    // Apps list.
     val portedPackages = portedById.values.mapTo(HashSet()) { it.packageName }
+    val nativePackages = nativeById.values.mapTo(HashSet()) { it.packageName }
     return ids.mapNotNull { id ->
         subsById[id]?.let { BuiltinEntry(it) }
             ?: portedById[id]?.let { PortedEntry(it) }
-            ?: installedById[id]?.takeIf { it.component.packageName !in portedPackages }
+            ?: nativeById[id]?.let { NativeAppEntry(it) }
+            ?: installedById[id]?.takeIf { it.component.packageName !in portedPackages && it.component.packageName !in nativePackages }
                 ?.let { app -> InstalledEntry(app, id) }
     }
 }
@@ -118,6 +129,8 @@ internal fun toLauncherEntries(
 fun LauncherRoute(
     onOpenApp: (SubApp) -> Unit,
     onOpenPorted: (PortedApp) -> Unit = {},
+    onOpenNative: (NativeApp) -> Unit = {},
+    searchRequest: Int = 0,
     viewModel: LauncherViewModel = viewModel()
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -132,6 +145,8 @@ fun LauncherRoute(
     val ported by remember { PortedApps.get(context).apps }.collectAsStateWithLifecycle()
     val appsRepository = remember(context) { AppsRepository(context.applicationContext) }
     val installed by remember { appsRepository.apps }.collectAsStateWithLifecycle(emptyList())
+    // Installed native apps change while the launcher is alive, so refresh on every resume.
+    val nativeApps = rememberNativeApps(refreshOnResume = true)
     androidx.lifecycle.compose.LifecycleResumeEffect(viewModel) {
         viewModel.loadPreferences(context)
         onPauseOrDispose {}
@@ -140,25 +155,27 @@ fun LauncherRoute(
     // Resolve the configured home order and dock into renderable entries.
     val subsById = remember(SubApp.entries) { SubApp.entries.associateBy { it.visibilityId() } }
     val portedById = remember(ported) { ported.associateBy { it.visibilityId() } }
+    val nativeById = remember(nativeApps) { nativeApps.associateBy { it.visibilityId } }
     // Only installed apps already pinned in the home order are known; every installed app is not.
-    val pinnedInstalled = remember(homeRevision, installed, ported) {
+    val pinnedInstalled = remember(homeRevision, installed, ported, nativeApps) {
         val pinned = homePrefs.homeOrder.filter { it.startsWith(HomePreferences.INSTALLED_PREFIX) }.toSet()
-        val portedPackages = ported.mapTo(HashSet()) { it.packageName }
+        val shadowed = ported.mapTo(HashSet()) { it.packageName } + nativeApps.map { it.packageName }
         installed.map { it.homeId(context) to it }.toMap()
             .filterKeys { it in pinned }
-            .filterValues { it.component.packageName !in portedPackages }
+            .filterValues { it.component.packageName !in shadowed }
     }
-    val known = remember(subsById, portedById, pinnedInstalled) { subsById.keys + portedById.keys + pinnedInstalled.keys }
-    val homeEntries = remember(homeRevision, known, subsById, portedById, pinnedInstalled) {
-        toLauncherEntries(homePrefs.homeOrderFor(known), subsById, portedById, pinnedInstalled)
+    val known = remember(subsById, portedById, nativeById, pinnedInstalled) { subsById.keys + portedById.keys + nativeById.keys + pinnedInstalled.keys }
+    val homeEntries = remember(homeRevision, known, subsById, portedById, pinnedInstalled, nativeById) {
+        toLauncherEntries(homePrefs.homeOrderFor(known), subsById, portedById, pinnedInstalled, nativeById)
     }
     // The dock is the first four *shown* apps, as Arrange apps labels them: a hidden app gives
     // up its dock slot to the next app instead of leaving the dock one short.
-    val dockEntries = remember(homeRevision, known, hidden, subsById, portedById, pinnedInstalled) {
-        toLauncherEntries(homePrefs.dockFor(known - hidden), subsById, portedById, pinnedInstalled)
+    val dockEntries = remember(homeRevision, known, hidden, subsById, portedById, pinnedInstalled, nativeById) {
+        toLauncherEntries(homePrefs.dockFor(known - hidden), subsById, portedById, pinnedInstalled, nativeById)
     }
     LauncherScreen(
         state = state,
+        searchRequest = searchRequest,
         hiddenApps = hidden,
         onOpenApp = onOpenApp,
         onToggleLayout = viewModel::toggleLayout,
@@ -166,6 +183,7 @@ fun LauncherRoute(
         dock = dockEntries,
         onOpenPorted = onOpenPorted,
         onOpenInstalled = { runCatching { appsRepository.launch(it) } },
+        onOpenNative = onOpenNative,
         appsSource = appsRepository
     )
 }
@@ -182,9 +200,11 @@ fun LauncherScreen(
     state: LauncherUiState,
     onOpenApp: (SubApp) -> Unit,
     onToggleLayout: () -> Unit,
+    searchRequest: Int = 0,
     home: List<LauncherEntry> = emptyList(),
     onOpenPorted: (PortedApp) -> Unit = {},
     onOpenInstalled: (LaunchableApp) -> Unit = {},
+    onOpenNative: (NativeApp) -> Unit = {},
     hiddenApps: Set<String> = emptySet(),
     dock: List<LauncherEntry> = emptyList(),
     appsSource: AppsSource? = null
@@ -195,6 +215,9 @@ fun LauncherScreen(
     val chrome = LocalChrome.current
     val focusManager = LocalFocusManager.current
     var searching by remember { mutableStateOf(false) }
+    // Controller Search can arrive while the launcher is already composed or after returning to it.
+    // Remembering the handled request keeps a later recomposition from opening search again.
+    var handledSearch by rememberSaveable { mutableIntStateOf(0) }
     // Row (grid) or item (list) that holds navigation focus, or -1 when nothing does. Up only steps
     // into the query field from the first row; anywhere lower it is ordinary focus movement.
     var focusedRow by remember { mutableStateOf(-1) }
@@ -209,6 +232,12 @@ fun LauncherScreen(
     }
     fun startSearch() {
         searching = true
+    }
+    LaunchedEffect(searchRequest) {
+        if (searchRequest > handledSearch) {
+            handledSearch = searchRequest
+            startSearch()
+        }
     }
     // The field is only focusable while searching (`canFocus` below), so focus it once the frame
     // that made it focusable has been composed, not from the key event that started the search.
@@ -283,7 +312,7 @@ fun LauncherScreen(
                 SideAction("search.query", text.ifEmpty { "Search apps" }, dense = true, onClick = { searchFocus.requestFocus() })
             )
         } else {
-            dockActions(dock.ifEmpty { defaultDock() }, hiddenApps, onOpenApp, onOpenPorted, onOpenInstalled, appsSource)
+            dockActions(dock.ifEmpty { defaultDock() }, hiddenApps, onOpenApp, onOpenPorted, onOpenInstalled, onOpenNative, appsSource)
         },
         trailingAction = if (searching || text.isNotEmpty()) clear else null,
         // Keypad Options key: the long-press gesture, as a button.
@@ -296,8 +325,8 @@ fun LauncherScreen(
             SidekitText(if (text.isNotEmpty()) "No matching apps" else "No apps shown. Use Options → Settings to show apps.", maxLines = Int.MAX_VALUE)
         } else {
             when (state.layout) {
-                LauncherLayout.Grid -> AppGrid(visible, padding, onOpenApp, onOpenPorted, onOpenInstalled, appsSource) { focusedRow = it }
-                LauncherLayout.List -> AppList(visible, padding, onOpenApp, onOpenPorted, onOpenInstalled) { focusedRow = it }
+                LauncherLayout.Grid -> AppGrid(visible, padding, onOpenApp, onOpenPorted, onOpenInstalled, onOpenNative, appsSource) { focusedRow = it }
+                LauncherLayout.List -> AppList(visible, padding, onOpenApp, onOpenPorted, onOpenInstalled, onOpenNative) { focusedRow = it }
             }
         }
     }
@@ -325,6 +354,7 @@ private fun AppGrid(
     onOpenApp: (SubApp) -> Unit,
     onOpenPorted: (PortedApp) -> Unit,
     onOpenInstalled: (LaunchableApp) -> Unit,
+    onOpenNative: (NativeApp) -> Unit,
     appsSource: AppsSource?,
     onFocusedRow: (Int) -> Unit
 ) {
@@ -339,6 +369,7 @@ private fun AppGrid(
                         is BuiltinEntry -> AppTile(entry.app, onOpenApp, focus)
                         is PortedEntry -> PortedTile(entry.app, onOpenPorted, focus)
                         is InstalledEntry -> InstalledTile(entry.app, appsSource, onOpenInstalled, focus)
+                        is NativeAppEntry -> NativeTile(entry.app, onOpenNative, focus)
                     }
                 }
                 repeat(GRID_COLUMNS - row.size) { Box(Modifier.weight(1f)) }
@@ -354,6 +385,7 @@ private fun AppList(
     onOpenApp: (SubApp) -> Unit,
     onOpenPorted: (PortedApp) -> Unit,
     onOpenInstalled: (LaunchableApp) -> Unit,
+    onOpenNative: (NativeApp) -> Unit,
     onFocusedRow: (Int) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -367,6 +399,7 @@ private fun AppList(
                         is BuiltinEntry -> onOpenApp(entry.app)
                         is PortedEntry -> onOpenPorted(entry.app)
                         is InstalledEntry -> onOpenInstalled(entry.app)
+                        is NativeAppEntry -> onOpenNative(entry.app)
                     }
                 }
             )
@@ -414,6 +447,7 @@ private fun dockActions(
     onOpenApp: (SubApp) -> Unit,
     onOpenPorted: (PortedApp) -> Unit,
     onOpenInstalled: (LaunchableApp) -> Unit,
+    onOpenNative: (NativeApp) -> Unit,
     appsSource: AppsSource?
 ): List<SideAction> = dock.filter { it.id !in hidden }.map { entry ->
     when (entry) {
@@ -434,6 +468,14 @@ private fun dockActions(
             artKey = entry.app.key,
             art = { InstalledAppIcon(entry.app, appsSource, SidekitTheme.spacing.tileIconSize) }
         ) { onOpenInstalled(entry.app) }
+
+        is NativeAppEntry -> SideAction(
+            "dock.native.${entry.app.packageName}",
+            label = entry.app.label,
+            contentDescription = entry.app.label,
+            artKey = entry.app.packageName,
+            art = { NativeAppIcon(entry.app) }
+        ) { onOpenNative(entry.app) }
     }
 }
 

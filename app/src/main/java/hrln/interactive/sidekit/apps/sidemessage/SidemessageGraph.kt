@@ -37,8 +37,8 @@ import hrln.interactive.sidekit.apps.phonebook.PhonebookRoutes
 import hrln.interactive.sidekit.apps.phonebook.rememberPermissionGate
 import hrln.interactive.sidekit.navigation.LAUNCHER_ROUTE
 import hrln.interactive.sidekit.navigation.SubApp
-import hrln.interactive.sidekit.ui.PauseUndoWhileHidden
-import hrln.interactive.sidekit.ui.UndoWindowLifecycle
+import hrln.interactive.sidekit.sdk.ui.PauseUndoWhileHidden
+import hrln.interactive.sidekit.sdk.ui.UndoWindowLifecycle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 

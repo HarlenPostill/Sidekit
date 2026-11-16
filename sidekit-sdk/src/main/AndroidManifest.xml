@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Only the request is merged into consumers. The permission itself is defined by the Sidekit
+        host app, because Android lets a normal permission be declared by one installed package
+        only: a declaration here would fail to install a differently signed client beside Sidekit
+        (INSTALL_FAILED_DUPLICATE_PERMISSION). See docs/third-party-apps-permissions.md.
+    -->
+    <!--
+        One request per Sidekit build that can host this app: the stable build defines the first
+        name, the dev build the second. A request for a name nothing defines is ignored.
+    -->
+    <uses-permission android:name="hrln.interactive.sidekit.permission.READ_APP_CONFIG" />
+    <uses-permission android:name="hrln.interactive.sidekit.dev.permission.READ_APP_CONFIG" />
+
+    <!-- Android 11 package visibility for SidekitConfigClient's host probe. -->
+    <queries>
+        <package android:name="hrln.interactive.sidekit" />
+        <package android:name="hrln.interactive.sidekit.dev" />
+    </queries>
+</manifest>

@@ -1,9 +1,14 @@
 package hrln.interactive.sidekit.apps.banking
 
 import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import androidx.core.util.AtomicFile
+import hrln.interactive.sidekit.sdk.crypto.ByteCipher
+import hrln.interactive.sidekit.sdk.crypto.KeystoreCipher
+import java.io.File
+import java.io.FileNotFoundException
+import java.io.IOException
+import java.security.GeneralSecurityException
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,16 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileNotFoundException
-import java.io.IOException
-import java.security.GeneralSecurityException
-import java.security.KeyStore
-import java.util.concurrent.atomic.AtomicReference
-import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
 
 /** Connector metadata for the editable manual book. Up bank snapshots use [UpBankConnector]
  * separately so imported balances cannot be changed by local ledger entries. */
@@ -43,56 +38,6 @@ object ManualTracker : BankConnector {
     override suspend fun sync(): BankBook? = null
 }
 
-/** Encrypts the Banking file. */
-interface BookCipher {
-    fun encrypt(plain: ByteArray): ByteArray
-    fun decrypt(sealed: ByteArray): ByteArray
-}
-
-/**
- * AES-256-GCM with a key generated inside the Android Keystore: the key never leaves secure
- * hardware (or the keystore daemon), so a copied file is unreadable off this phone. Output is
- * the 12-byte IV followed by ciphertext and tag.
- *
- * The key isn't bound to user authentication: Banking asks for the screen lock before it reads
- * the file instead (see [BankingGate]); binding the key would make every background save fail
- * once the auth window lapsed.
- */
-class KeystoreCipher(private val alias: String = "sidekit_banking") : BookCipher {
-    private fun key(): SecretKey {
-        val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (store.getEntry(alias, null) as? KeyStore.SecretKeyEntry)?.let { return it.secretKey }
-        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-        generator.init(
-            KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setKeySize(256)
-                .build(),
-        )
-        return generator.generateKey()
-    }
-
-    override fun encrypt(plain: ByteArray): ByteArray {
-        val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, key())
-        val iv = cipher.iv
-        return iv + cipher.doFinal(plain)
-    }
-
-    override fun decrypt(sealed: ByteArray): ByteArray {
-        if (sealed.size <= IV_BYTES) throw GeneralSecurityException("Truncated")
-        val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, sealed, 0, IV_BYTES))
-        return cipher.doFinal(sealed, IV_BYTES, sealed.size - IV_BYTES)
-    }
-
-    private companion object {
-        const val TRANSFORMATION = "AES/GCM/NoPadding"
-        const val IV_BYTES = 12
-    }
-}
-
 /** Where the book lives. Called off the main thread only. */
 interface BankStore {
     /** The stored book, an empty one if nothing was stored yet. Throws if it exists but can't be read. */
@@ -101,7 +46,7 @@ interface BankStore {
 }
 
 /** The book encrypted in one file, replaced atomically so a crash mid-write keeps the old copy. */
-class EncryptedFileBankStore(file: File, private val cipher: BookCipher) : BankStore {
+class EncryptedFileBankStore(file: File, private val cipher: ByteCipher) : BankStore {
     private val file = AtomicFile(file)
 
     override fun read(): BankBook {
@@ -145,7 +90,7 @@ class BankingRepository(
     scope: CoroutineScope,
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val clock: () -> Long = System::currentTimeMillis,
-    val connector: BankConnector = ManualTracker,
+    val connector: BankConnector = ManualTracker
 ) {
     sealed interface Load {
         data object Locked : Load
@@ -241,7 +186,7 @@ class BankingRepository(
             b.copy(
                 accounts = accounts,
                 transactions = b.transactions.filter { it.accountId != id },
-                selectedAccountId = if (b.selectedAccountId == id) accounts.firstOrNull()?.id else b.selectedAccountId,
+                selectedAccountId = if (b.selectedAccountId == id) accounts.firstOrNull()?.id else b.selectedAccountId
             )
         }
         return removed
@@ -302,7 +247,7 @@ object Banking {
     fun repository(context: Context): BankingRepository = repository ?: synchronized(this) {
         repository ?: BankingRepository(
             EncryptedFileBankStore(File(context.applicationContext.filesDir, "banking.sealed"), KeystoreCipher()),
-            CoroutineScope(SupervisorJob()),
+            CoroutineScope(SupervisorJob())
         ).also { repository = it }
     }
 }
