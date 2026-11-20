@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
+import androidx.core.content.edit
 import java.util.Locale
 
 /**
@@ -54,7 +55,7 @@ object AppLanguage {
                 tag?.let(LocaleList::forLanguageTags) ?: LocaleList.getEmptyLocaleList()
         } else {
             // commit, not apply: the recreated activity reads it back in attachBaseContext.
-            activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, tag).commit()
+            activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit(commit = true) { putString(KEY, tag) }
             activity.recreate()
         }
     }

@@ -74,6 +74,13 @@ android {
     androidResources {
         generateLocaleConfig = true
     }
+    // Settings → Language switches at runtime, so every language must be in the install: a Play
+    // bundle split by language would only carry the phone's.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
     packaging { resources.merges += setOf("META-INF/NOTICE.md", "META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.txt") }
     buildFeatures {
         compose = true
