@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -25,21 +26,23 @@ import hrln.interactive.sidekit.design.theme.CaseColour
 import hrln.interactive.sidekit.design.theme.SidekitColors
 import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.design.theme.readableContentOn
+import hrln.interactive.sidekit.sdk.R
 
 /**
  * The case-colour picker, shared by Sidekit's Settings/onboarding and standalone Sidekit apps so
  * every host offers the same swatches.
  */
 fun LazyListScope.caseColourChoices(selected: CaseColour?, choose: (CaseColour?) -> Unit) {
-    item { SidekitText("Match your Sidephone case", style = SidekitTheme.typography.label) }
+    item { SidekitText(stringResource(R.string.sk_sdk_case_colour_intro), style = SidekitTheme.typography.label) }
     item {
+        val original = stringResource(R.string.sk_sdk_case_colour_original)
         Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(SidekitTheme.spacing.itemOuterGap)) {
             (CaseColour.entries + listOf(null)).chunked(3).forEach { row ->
                 SidekitItemRow {
                     row.forEach { colour ->
                         val active = colour == selected
                         val swatch = colour?.color ?: SidekitColors().primaryA1
-                        val label = colour?.label ?: "Original blue"
+                        val label = colour?.displayLabel() ?: original
                         Box(
                             Modifier.weight(1f).height(88.dp)
                                 .border(if (active) 3.dp else 0.dp, if (active) Color.White else Color.Transparent, SidekitTheme.shapes.item)
@@ -58,5 +61,8 @@ fun LazyListScope.caseColourChoices(selected: CaseColour?, choose: (CaseColour?)
             }
         }
     }
-    item { SidekitText("Active: ${selected?.label ?: "Original blue"}", style = SidekitTheme.typography.label) }
+    item {
+        val active = selected?.displayLabel() ?: stringResource(R.string.sk_sdk_case_colour_original)
+        SidekitText(stringResource(R.string.sk_sdk_case_colour_active, active), style = SidekitTheme.typography.label)
+    }
 }

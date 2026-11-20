@@ -1,34 +1,35 @@
 package hrln.interactive.sidekit.apps.music
 
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.test.resetMain
-import org.junit.After
-import org.junit.Before
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MusicViewModelTest {
     private val tracks = listOf(
         Track(1, "Our Mission", 1, 3, "Yoshiruma Terui", "Hidden Inventory", 1000),
-        Track(2, "A Little Lesson", 1, 3, "Yoshiruma Terui", "Hidden Inventory", 2000),
+        Track(2, "A Little Lesson", 1, 3, "Yoshiruma Terui", "Hidden Inventory", 2000)
     )
     private val player = FakePlayer()
     private val source = object : MusicSource {
         override fun tracks() = tracks
         override fun changes(): Flow<Unit> = flowOf(Unit)
+        override fun labels() = MusicLabels("Unknown album", "Unknown artist", "Various Artists")
     }
     private val store = object : PlaylistStore {
         override fun read() = listOf(Playlist(8, "Favourites", listOf(2)))
@@ -36,10 +37,11 @@ class MusicViewModelTest {
     }
 
     @Before fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
+
     @After fun tearDown() = Dispatchers.resetMain()
 
     @Test fun playTrackQueuesItsAlbumFromThatTrack() = runTest {
-        val vm = MusicViewModel(source, PlaylistRepository(store, backgroundScope, UnconfinedTestDispatcher()), player, UnconfinedTestDispatcher())
+        val vm = MusicViewModel(source, PlaylistRepository(store, backgroundScope, UnconfinedTestDispatcher()) { "Playlist $it" }, player, UnconfinedTestDispatcher())
         vm.state.first { it.loaded }
         vm.playTrack(2)
         assertEquals(tracks.sortedBy { it.title }, player.tracks)
@@ -51,7 +53,7 @@ class MusicViewModelTest {
     }
 
     @Test fun persistentPlaylistPlaysFromFirstTrack() = runTest {
-        val vm = MusicViewModel(source, PlaylistRepository(store, backgroundScope, UnconfinedTestDispatcher()), player, UnconfinedTestDispatcher())
+        val vm = MusicViewModel(source, PlaylistRepository(store, backgroundScope, UnconfinedTestDispatcher()) { "Playlist $it" }, player, UnconfinedTestDispatcher())
         vm.state.first { it.loaded }
         vm.playPlaylist(8)
         assertEquals(listOf(tracks[1]), player.tracks)
@@ -73,7 +75,10 @@ class MusicViewModelTest {
         override val state: StateFlow<PlaybackState> = MutableStateFlow(PlaybackState())
         var tracks: List<Track> = emptyList()
         var start = -1
-        override fun playQueue(tracks: List<Track>, startIndex: Int, shuffle: Boolean?) { this.tracks = tracks; start = startIndex }
+        override fun playQueue(tracks: List<Track>, startIndex: Int, shuffle: Boolean?) {
+            this.tracks = tracks
+            start = startIndex
+        }
         override fun togglePlayPause() = Unit
         override fun next() = Unit
         override fun previous() = Unit

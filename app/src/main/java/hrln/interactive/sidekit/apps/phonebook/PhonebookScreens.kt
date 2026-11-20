@@ -1,5 +1,6 @@
 package hrln.interactive.sidekit.apps.phonebook
 
+import android.content.res.Resources
 import android.text.format.DateFormat
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
@@ -16,17 +17,20 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import hrln.interactive.sidekit.R
 import hrln.interactive.sidekit.design.action.ActionMotion
 import hrln.interactive.sidekit.design.action.ActionTone
 import hrln.interactive.sidekit.design.action.SideAction
@@ -45,6 +49,7 @@ import hrln.interactive.sidekit.design.theme.SidekitTheme
 import hrln.interactive.sidekit.ui.SidekitPreviewFrame
 import hrln.interactive.sidekit.ui.SidephonePreview
 import java.util.Calendar
+import java.util.Locale
 
 object PhonebookTags {
     const val CONTACTS = "phonebook_contacts"
@@ -70,38 +75,43 @@ fun PhonebookHomeScreen(
     onOpen: (Contact) -> Unit,
     onRecents: () -> Unit,
     onDialPad: () -> Unit,
-    onCall: (String) -> Unit,
+    onCall: (String) -> Unit
 ) {
     val searching = state.query.isNotEmpty()
     val actions = when {
         searching -> listOf(
-            SideAction("left", "Clear", SidekitIcon.Close, tone = ActionTone.Muted, motion = ActionMotion.Up, contentDescription = "Clear number", onClick = onClear),
-            SideAction("right", "Call", SidekitIcon.Call, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = "Call ${state.query}") { onCall(state.query) },
+            SideAction("left", stringResource(R.string.phonebook_clear), SidekitIcon.Close, tone = ActionTone.Muted, motion = ActionMotion.Up, contentDescription = stringResource(R.string.phonebook_clear_cd), onClick = onClear),
+            SideAction("right", stringResource(R.string.phonebook_call), SidekitIcon.Call, iconAtEnd = true, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = stringResource(R.string.phonebook_call_cd, state.query)) { onCall(state.query) }
         )
+
         !state.allowed -> listOf(
-            SideAction("left", "Allow", tone = ActionTone.Primary, motion = ActionMotion.Up, contentDescription = "Allow contacts", onClick = onAllow),
-            SideAction("right", "Dial", SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = "Dial pad", onClick = onDialPad),
+            SideAction("left", stringResource(R.string.phonebook_allow), tone = ActionTone.Primary, motion = ActionMotion.Up, contentDescription = stringResource(R.string.phonebook_allow_contacts_cd), onClick = onAllow),
+            SideAction("right", stringResource(R.string.phonebook_dial), SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = stringResource(R.string.phonebook_dial_pad), onClick = onDialPad)
         )
+
         else -> listOf(
-            SideAction("left", "Calls", SidekitIcon.CallLog, motion = ActionMotion.Forward, contentDescription = "Recent calls", onClick = onRecents),
-            SideAction("right", "Dial", SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = "Dial pad", onClick = onDialPad),
+            SideAction("left", stringResource(R.string.phonebook_calls), SidekitIcon.CallLog, motion = ActionMotion.Forward, contentDescription = stringResource(R.string.phonebook_recent_calls_cd), onClick = onRecents),
+            SideAction("right", stringResource(R.string.phonebook_dial), SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = stringResource(R.string.phonebook_dial_pad), onClick = onDialPad)
         )
     }
     val options = listOfNotNull(
-        if (searching || !state.allowed) SideAction("recents", "Recents", SidekitIcon.CallLog, onClick = onRecents) else null,
-        if (searching) SideAction("dial", "Dial pad", onClick = onDialPad) else null,
+        if (searching || !state.allowed) SideAction("recents", stringResource(R.string.phonebook_recents), SidekitIcon.CallLog, onClick = onRecents) else null,
+        if (searching) SideAction("dial", stringResource(R.string.phonebook_dial_pad), onClick = onDialPad) else null
     )
 
     val parking = remember { FocusRequester() }
     SidekitScaffold(
-        title = "Phonebook", actions = actions, options = options, focusParking = parking,
-        modifier = Modifier.keypadDigits(onKey = { if (it in '0'..'9') onDigit(it) }, onDelete = onDelete, parking = parking),
+        title = stringResource(R.string.phonebook_title),
+        actions = actions,
+        options = options,
+        focusParking = parking,
+        modifier = Modifier.keypadDigits(onKey = { if (it in '0'..'9') onDigit(it) }, onDelete = onDelete, parking = parking)
     ) { padding ->
         val listState = rememberLazyListState()
         SidekitList(
             padding,
             Modifier.testTag(PhonebookTags.CONTACTS),
-            state = listState,
+            state = listState
         ) {
             var index = 0
             if (searching) {
@@ -116,8 +126,8 @@ fun PhonebookHomeScreen(
                 val i = index++
                 item("permission") {
                     InfoCard(
-                        "Phonebook needs your contacts to list them and search them from the keypad. You can still dial a number.",
-                        Modifier.listFade(listState, i),
+                        stringResource(R.string.phonebook_info_permission),
+                        Modifier.listFade(listState, i)
                     )
                 }
                 return@SidekitList
@@ -139,7 +149,7 @@ fun PhonebookHomeScreen(
             if (state.loaded && state.matches.isEmpty()) {
                 val i = index++
                 item("empty") {
-                    InfoCard(if (searching) "No contacts match" else "No contacts with phone numbers yet", Modifier.listFade(listState, i))
+                    InfoCard(stringResource(if (searching) R.string.phonebook_no_match else R.string.phonebook_empty), Modifier.listFade(listState, i))
                 }
             }
             val offset = index
@@ -148,7 +158,7 @@ fun PhonebookHomeScreen(
                     title = m.contact.name,
                     secondary = m.number?.let { PhoneFormat.format(it.number, region) },
                     modifier = Modifier.listFade(listState, i + offset),
-                    onClick = { onOpen(m.contact) },
+                    onClick = { onOpen(m.contact) }
                 )
             }
         }
@@ -168,16 +178,16 @@ fun ContactDetailScreen(
     onSelect: (Int) -> Unit,
     onBack: () -> Unit,
     onCall: (String) -> Unit,
-    onMessage: (String) -> Unit,
+    onMessage: (String) -> Unit
 ) {
     val chosen = numbers.getOrNull(selected) ?: numbers.firstOrNull()
     SidekitScaffold(
         title = title,
         actions = listOfNotNull(
-            SideAction.square("back", SidekitIcon.ArrowLeftAlt, "Back", onBack, motion = ActionMotion.Back),
-            chosen?.let { SideAction("call", "Call", SidekitIcon.Call, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = "Call ${it.number}") { onCall(it.number) } },
-            chosen?.let { SideAction("message", "Text", SidekitIcon.Chat, motion = ActionMotion.Forward, contentDescription = "Message ${it.number}") { onMessage(it.number) } },
-        ),
+            SideAction.square("back", SidekitIcon.ArrowLeftAlt, stringResource(R.string.phonebook_back), onBack, motion = ActionMotion.Back),
+            chosen?.let { SideAction("call", stringResource(R.string.phonebook_call), SidekitIcon.Call, tone = ActionTone.Secondary, motion = ActionMotion.Up, contentDescription = stringResource(R.string.phonebook_call_cd, it.number)) { onCall(it.number) } },
+            chosen?.let { SideAction("message", stringResource(R.string.phonebook_text), SidekitIcon.Chat, motion = ActionMotion.Forward, contentDescription = stringResource(R.string.phonebook_message_cd, it.number)) { onMessage(it.number) } }
+        )
     ) { padding ->
         val listState = rememberLazyListState()
         SidekitList(padding, state = listState) {
@@ -187,7 +197,7 @@ fun ContactDetailScreen(
                     secondary = PhoneFormat.format(n.number, region),
                     colour = if (numbers.size > 1 && n == chosen) ItemColour.Secondary else ItemColour.Primary,
                     modifier = Modifier.listFade(listState, i),
-                    onClick = { onSelect(i) },
+                    onClick = { onSelect(i) }
                 )
             }
         }
@@ -202,35 +212,39 @@ fun RecentsScreen(
     onAllow: () -> Unit,
     onOpen: (CallRow) -> Unit,
     onBack: () -> Unit,
-    onDialPad: () -> Unit,
+    onDialPad: () -> Unit
 ) {
     SidekitScaffold(
-        title = "Recents",
+        title = stringResource(R.string.phonebook_recents),
         actions = listOf(
-            SideAction.back("back", "Back", onBack),
-            if (state.allowed) SideAction("dial", "Dial", SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = "Dial pad", onClick = onDialPad)
-            else SideAction("dial", "Allow", tone = ActionTone.Primary, motion = ActionMotion.Up, contentDescription = "Allow call log", onClick = onAllow),
-        ),
+            SideAction.back("back", stringResource(R.string.phonebook_back), onBack),
+            if (state.allowed) {
+                SideAction("dial", stringResource(R.string.phonebook_dial), SidekitIcon.ArrowRightAlt, iconAtEnd = true, motion = ActionMotion.Forward, contentDescription = stringResource(R.string.phonebook_dial_pad), onClick = onDialPad)
+            } else {
+                SideAction("dial", stringResource(R.string.phonebook_allow), tone = ActionTone.Primary, motion = ActionMotion.Up, contentDescription = stringResource(R.string.phonebook_allow_call_log_cd), onClick = onAllow)
+            }
+        )
     ) { padding ->
         val listState = rememberLazyListState()
         val context = LocalContext.current
         val now = remember { System.currentTimeMillis() }
+        val unknown = stringResource(R.string.phonebook_unknown)
         SidekitList(padding, state = listState) {
             if (!state.allowed) {
-                item("permission") { InfoCard("Recents needs your call log to show calls you've made and missed.", Modifier.listFade(listState, 0)) }
+                item("permission") { InfoCard(stringResource(R.string.phonebook_info_call_log), Modifier.listFade(listState, 0)) }
                 return@SidekitList
             }
             if (state.loaded && state.calls.isEmpty()) {
-                item("empty") { InfoCard("No calls yet", Modifier.listFade(listState, 0)) }
+                item("empty") { InfoCard(stringResource(R.string.phonebook_no_calls), Modifier.listFade(listState, 0)) }
             }
             itemsIndexed(state.calls, key = { _, r -> r.call.id }, contentType = { _, _ -> 0 }) { i, row ->
                 val missed = row.call.type == CallType.Missed || row.call.type == CallType.Rejected
                 SidekitItem(
-                    title = row.name ?: PhoneFormat.format(row.call.number, region).ifEmpty { "Unknown" },
-                    secondary = CallTime.describe(row.call, now, DateFormat.is24HourFormat(context)),
+                    title = row.name ?: PhoneFormat.format(row.call.number, region).ifEmpty { unknown },
+                    secondary = CallTime.describe(LocalResources.current, row.call, now, DateFormat.is24HourFormat(context)),
                     colour = if (missed) ItemColour.Destructive else ItemColour.Primary,
                     modifier = Modifier.listFade(listState, i),
-                    onClick = { onOpen(row) },
+                    onClick = { onOpen(row) }
                 )
             }
         }
@@ -241,7 +255,7 @@ private val DIAL_KEYS = listOf(
     '1' to "", '2' to "abc", '3' to "def",
     '4' to "ghi", '5' to "jkl", '6' to "mno",
     '7' to "pqrs", '8' to "tuv", '9' to "wxyz",
-    '*' to "", '0' to "+", '#' to "",
+    '*' to "", '0' to "+", '#' to ""
 )
 
 /**
@@ -258,21 +272,21 @@ fun DialPadScreen(
     onPlus: () -> Unit,
     onBack: () -> Unit,
     onCall: (String) -> Unit,
-    onMessage: (String) -> Unit,
+    onMessage: (String) -> Unit
 ) {
     val actions = if (number.isEmpty()) {
-        listOf(SideAction.back("back", "Phonebook", onBack))
+        listOf(SideAction.back("back", stringResource(R.string.phonebook_title), onBack))
     } else {
         listOf(
-            SideAction.square("back", SidekitIcon.ArrowLeftAlt, "Back", onBack, motion = ActionMotion.Back),
-            SideAction("call", "Call", SidekitIcon.Call, tone = ActionTone.Secondary, weight = 1.6f, motion = ActionMotion.Up, contentDescription = "Call $number") { onCall(number) },
-            SideAction.square("delete", SidekitIcon.Undo, "Delete digit", onDelete, tone = ActionTone.Muted, motion = ActionMotion.Up),
+            SideAction.square("back", SidekitIcon.ArrowLeftAlt, stringResource(R.string.phonebook_back), onBack, motion = ActionMotion.Back),
+            SideAction("call", stringResource(R.string.phonebook_call), SidekitIcon.Call, tone = ActionTone.Secondary, weight = 1.6f, motion = ActionMotion.Up, contentDescription = stringResource(R.string.phonebook_call_cd, number)) { onCall(number) },
+            SideAction.square("delete", SidekitIcon.Undo, stringResource(R.string.phonebook_delete_digit), onDelete, tone = ActionTone.Muted, motion = ActionMotion.Up)
         )
     }
     SidekitScaffold(
-        title = "Dial",
+        title = stringResource(R.string.phonebook_dial),
         actions = actions,
-        options = if (number.isEmpty()) emptyList() else listOf(SideAction("message", "Text this number", SidekitIcon.Chat) { onMessage(number) }),
+        options = if (number.isEmpty()) emptyList() else listOf(SideAction("message", stringResource(R.string.phonebook_text_number), SidekitIcon.Chat) { onMessage(number) })
     ) { padding ->
         val colors = SidekitTheme.colors
         Column(
@@ -280,15 +294,15 @@ fun DialPadScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .keypadDigits(onKey = onKey, onDelete = onDelete, onLongZero = onPlus),
-            verticalArrangement = Arrangement.spacedBy(SidekitTheme.spacing.itemOuterGap),
+            verticalArrangement = Arrangement.spacedBy(SidekitTheme.spacing.itemOuterGap)
         ) {
             SidekitCard(Modifier.fillMaxWidth()) {
                 SidekitText(
-                    if (number.isEmpty()) "Enter a number" else PhoneFormat.format(number, region),
+                    if (number.isEmpty()) stringResource(R.string.phonebook_enter_number) else PhoneFormat.format(number, region),
                     style = SidekitTheme.typography.headline,
                     color = if (number.isEmpty()) colors.surfaceA6 else colors.light,
                     textAlign = TextAlign.End,
-                    modifier = Modifier.fillMaxWidth().align(Alignment.CenterEnd).testTag(PhonebookTags.DIAL_NUMBER),
+                    modifier = Modifier.fillMaxWidth().align(Alignment.CenterEnd).testTag(PhonebookTags.DIAL_NUMBER)
                 )
             }
             DIAL_KEYS.chunked(3).forEach { row ->
@@ -303,6 +317,7 @@ fun DialPadScreen(
 @Composable
 private fun RowScope.DialKey(digit: Char, letters: String, onKey: (Char) -> Unit, onLong: (() -> Unit)?) {
     val colors = SidekitTheme.colors
+    val description = stringResource(R.string.phonebook_key_cd, digit.toString())
     // Not SidekitTile: that fixes the height at 104, and four rows of keys need ~72 here.
     Column(
         Modifier
@@ -311,9 +326,9 @@ private fun RowScope.DialKey(digit: Char, letters: String, onKey: (Char) -> Unit
             .clip(SidekitTheme.shapes.item)
             .background(colors.surfaceA3)
             .combinedClickable(role = Role.Button, onLongClick = onLong) { onKey(digit) }
-            .semantics(mergeDescendants = true) { contentDescription = "Key $digit" },
+            .semantics(mergeDescendants = true) { contentDescription = description },
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Center
     ) {
         SidekitText(digit.toString(), style = SidekitTheme.typography.label)
         if (letters.isNotEmpty()) SidekitText(letters.uppercase(), style = SidekitTheme.typography.tiny, color = colors.surfaceA6)
@@ -329,16 +344,16 @@ private fun InfoCard(text: String, modifier: Modifier = Modifier) {
 
 /** "Missed · 14:02", "Outgoing · Tue", "Incoming · 3 Oct". */
 object CallTime {
-    fun describe(call: CallEntry, now: Long, is24h: Boolean): String {
+    fun describe(resources: Resources, call: CallEntry, now: Long, is24h: Boolean): String {
         val kind = when (call.type) {
-            CallType.Incoming -> "Incoming"
-            CallType.Outgoing -> "Outgoing"
-            CallType.Missed -> "Missed"
-            CallType.Rejected -> "Declined"
-            CallType.Blocked -> "Blocked"
-            CallType.Other -> "Call"
+            CallType.Incoming -> R.string.phonebook_call_incoming
+            CallType.Outgoing -> R.string.phonebook_call_outgoing
+            CallType.Missed -> R.string.phonebook_call_missed
+            CallType.Rejected -> R.string.phonebook_call_declined
+            CallType.Blocked -> R.string.phonebook_call_blocked
+            CallType.Other -> R.string.phonebook_call
         }
-        return "$kind · ${whenText(call.date, now, is24h)}"
+        return resources.getString(R.string.phonebook_call_time, resources.getString(kind), whenText(call.date, now, is24h))
     }
 
     fun whenText(date: Long, now: Long, is24h: Boolean): String {
@@ -346,12 +361,15 @@ object CallTime {
         val today = Calendar.getInstance().apply { timeInMillis = now }
         val sameDay = then.get(Calendar.YEAR) == today.get(Calendar.YEAR) && then.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
         return when {
-            sameDay -> DateFormat.format(if (is24h) "HH:mm" else "h:mm a", then).toString()
-            now - date < 6 * DateUtils.DAY_IN_MILLIS -> DateFormat.format("EEE", then).toString()
-            then.get(Calendar.YEAR) == today.get(Calendar.YEAR) -> DateFormat.format("d MMM", then).toString()
-            else -> DateFormat.format("d MMM yyyy", then).toString()
+            sameDay -> format(if (is24h) "Hm" else "hm", then)
+            now - date < 6 * DateUtils.DAY_IN_MILLIS -> format("EEE", then)
+            then.get(Calendar.YEAR) == today.get(Calendar.YEAR) -> format("dMMM", then)
+            else -> format("dMMMyyyy", then)
         }
     }
+
+    /** The language's own order and words for [skeleton] ("dMMM" is "3 Oct", "Oct 3" or "3. Okt."). */
+    private fun format(skeleton: String, time: Calendar): String = DateFormat.format(DateFormat.getBestDateTimePattern(Locale.getDefault(), skeleton), time).toString()
 }
 
 private object PhonebookSampleData {
@@ -360,7 +378,7 @@ private object PhonebookSampleData {
         Contact(2, "Mum", listOf(PhoneNumber("0400 111 222", "Mobile"), PhoneNumber("02 9876 5432", "Home")), starred = true),
         Contact(3, "Ari Cohen", listOf(PhoneNumber("0433 222 111", "Mobile"))),
         Contact(4, "Fio Russo", listOf(PhoneNumber("0455 765 432", "Mobile"))),
-        Contact(5, "Josie Bell", listOf(PhoneNumber("0466 888 999", "Work"))),
+        Contact(5, "Josie Bell", listOf(PhoneNumber("0466 888 999", "Work")))
     )
 }
 
@@ -370,7 +388,7 @@ private fun PhonebookHomePreview() = SidekitPreviewFrame {
     val all = PhonebookSampleData.contacts
     PhonebookHomeScreen(
         ContactsUiState(loaded = true, matches = T9Search.filter(all, ""), starred = all.filter { it.starred }),
-        "AU", {}, {}, {}, {}, {}, {}, {}, {},
+        "AU", {}, {}, {}, {}, {}, {}, {}, {}
     )
 }
 
@@ -389,13 +407,13 @@ private fun DialPreview() = SidekitPreviewFrame {
 @Composable
 fun CallPermissionScreen(number: String, onBack: () -> Unit, onAllow: () -> Unit, onDialer: () -> Unit) {
     SidekitScaffold(
-        title = "Call",
-        actions = listOf(SideAction.back("back", "Back", onBack), SideAction("allow", "Allow", onClick = onAllow)),
-        options = listOf(SideAction("dialer", "System dialer", onClick = onDialer)),
+        title = stringResource(R.string.phonebook_call),
+        actions = listOf(SideAction.back("back", stringResource(R.string.phonebook_back), onBack), SideAction("allow", stringResource(R.string.phonebook_allow), onClick = onAllow)),
+        options = listOf(SideAction("dialer", stringResource(R.string.phonebook_system_dialer), onClick = onDialer))
     ) { padding ->
         val state = rememberLazyListState()
         SidekitList(padding, state = state) {
-            item { InfoCard("Allow phone access to call $number. You can also use the system dialer from Options.", Modifier.listFade(state, 0)) }
+            item { InfoCard(stringResource(R.string.phonebook_call_permission, number), Modifier.listFade(state, 0)) }
         }
     }
 }
