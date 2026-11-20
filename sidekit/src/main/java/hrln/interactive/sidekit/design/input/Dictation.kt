@@ -7,6 +7,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -19,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import hrln.interactive.sidekit.design.R
 
 /**
  * Speech to text for a text field, through the platform recognizer (absent on some AOSP builds).
@@ -36,39 +38,45 @@ class Dictation internal constructor(private val context: Context) {
     fun start(onHeard: (String) -> Unit) {
         release()
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            tell("Speech recognition isn't installed on this phone")
+            tell(R.string.sk_sidekit_dictation_not_installed)
             return
         }
         this.onHeard = onHeard
         try {
             recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
                 setRecognitionListener(Listener())
-                startListening(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-                })
+                startListening(
+                    Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                    }
+                )
             }
             listening = true
         } catch (_: Exception) {
             release()
-            tell("Couldn't start dictation")
+            tell(R.string.sk_sidekit_dictation_start_failed)
         }
     }
 
     /** Stops listening; what was heard so far still arrives. */
     fun stop() {
-        try { recognizer?.stopListening() } catch (_: Exception) {}
+        try {
+            recognizer?.stopListening()
+        } catch (_: Exception) {}
     }
 
     fun release() {
-        try { recognizer?.cancel() } catch (_: Exception) {}
+        try {
+            recognizer?.cancel()
+        } catch (_: Exception) {}
         recognizer?.destroy()
         recognizer = null
         onHeard = null
         listening = false
     }
 
-    private fun tell(message: String) = Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    private fun tell(@StringRes message: Int) = Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 
     private inner class Listener : RecognitionListener {
         override fun onResults(results: Bundle) {
@@ -81,13 +89,19 @@ class Dictation internal constructor(private val context: Context) {
             release()
             when (error) {
                 // Our own cancel() destroys the recogniser first, so this is a real start failure.
-                SpeechRecognizer.ERROR_CLIENT -> tell("Couldn't start dictation")
-                SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> tell("Dictation is busy. Try again.")
-                SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> tell("Dictation isn't available in this language")
-                SpeechRecognizer.ERROR_SPEECH_TIMEOUT, SpeechRecognizer.ERROR_NO_MATCH -> tell("Didn't hear anything")
-                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> tell("Allow the microphone to dictate")
-                SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> tell("Dictation needs a connection")
-                else -> tell("Didn't catch that. Try again.")
+                SpeechRecognizer.ERROR_CLIENT -> tell(R.string.sk_sidekit_dictation_start_failed)
+
+                SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> tell(R.string.sk_sidekit_dictation_busy)
+
+                SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> tell(R.string.sk_sidekit_dictation_language)
+
+                SpeechRecognizer.ERROR_SPEECH_TIMEOUT, SpeechRecognizer.ERROR_NO_MATCH -> tell(R.string.sk_sidekit_dictation_silence)
+
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> tell(R.string.sk_sidekit_dictation_microphone)
+
+                SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> tell(R.string.sk_sidekit_dictation_offline)
+
+                else -> tell(R.string.sk_sidekit_dictation_retry)
             }
         }
         override fun onReadyForSpeech(params: Bundle?) = Unit

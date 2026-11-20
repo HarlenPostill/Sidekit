@@ -16,7 +16,7 @@ data class MusicUiState(
     val library: MusicLibrary = MusicLibrary.Empty,
     val playback: PlaybackState = PlaybackState(),
     val loaded: Boolean = false,
-    val query: String = "",
+    val query: String = ""
 ) {
     val home: List<LibraryItem> get() = library.home()
     val results: List<LibraryItem> get() = library.search(query)
@@ -28,7 +28,7 @@ class MusicViewModel(
     private val source: MusicSource,
     private val playlists: PlaylistRepository,
     private val player: MusicPlayer,
-    private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val io: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
     private val query = MutableStateFlow("")
     private val loaded = MutableStateFlow(false)
@@ -38,13 +38,13 @@ class MusicViewModel(
         player.state,
         loaded,
         query,
-        ::MusicUiState,
+        ::MusicUiState
     ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MusicUiState(playback = player.state.value))
 
     private fun sourceLibrary() = combine(source.changes(), playlists.playlists) { _, saved ->
         val tracks = withContext(io) { runCatching { source.tracks() }.getOrDefault(emptyList()) }
         loaded.value = true
-        MusicLibrary.from(tracks, saved.orEmpty())
+        MusicLibrary.from(tracks, source.labels(), saved.orEmpty())
     }
 
     fun togglePlayPause() = player.togglePlayPause()
@@ -88,6 +88,10 @@ class MusicViewModel(
 
     fun createPlaylist() = playlists.create("")
 
-    fun updateQuery(value: String) { query.value = value }
-    fun clearSearch() { query.value = "" }
+    fun updateQuery(value: String) {
+        query.value = value
+    }
+    fun clearSearch() {
+        query.value = ""
+    }
 }

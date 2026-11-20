@@ -2,6 +2,13 @@ package hrln.interactive.sidekit.apps.music
 
 import android.content.Context
 import androidx.core.util.AtomicFile
+import hrln.interactive.sidekit.R
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,12 +20,6 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
-import java.io.DataInputStream
-import java.io.DataOutputStream
-import java.io.File
-import java.io.IOException
 
 /** Where playlists live on disk. Called off the main thread only. */
 interface PlaylistStore {
@@ -85,6 +86,8 @@ class PlaylistRepository(
     private val store: PlaylistStore,
     scope: CoroutineScope,
     io: CoroutineDispatcher = Dispatchers.IO,
+    /** The name of the [n]th playlist when it is created without one ("Playlist 3"). */
+    private val defaultName: (n: Int) -> String
 ) {
     private val _playlists = MutableStateFlow<List<Playlist>?>(null)
 
@@ -124,7 +127,7 @@ class PlaylistRepository(
     fun create(name: String, trackIds: List<Long> = emptyList()): Long {
         val id = nextId()
         mutate { list ->
-            val title = name.trim().ifEmpty { "Playlist ${list.size + 1}" }
+            val title = name.trim().ifEmpty { defaultName(list.size + 1) }
             list + Playlist(id, title, trackIds.distinct())
         }
         return id
@@ -175,7 +178,7 @@ object Playlists {
     fun repository(context: Context): PlaylistRepository = repository ?: synchronized(this) {
         repository ?: PlaylistRepository(
             FilePlaylistStore(File(context.applicationContext.filesDir, "music_playlists.bin")),
-            CoroutineScope(SupervisorJob()),
-        ).also { repository = it }
+            CoroutineScope(SupervisorJob())
+        ) { n -> context.applicationContext.getString(R.string.music_playlist_default, n) }.also { repository = it }
     }
 }

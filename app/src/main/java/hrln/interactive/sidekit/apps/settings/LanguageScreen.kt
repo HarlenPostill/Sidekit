@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import hrln.interactive.sidekit.R
@@ -22,7 +23,9 @@ import hrln.interactive.sidekit.locale.AppLanguage.findActivity
 @Composable
 internal fun LanguageScreen(back: () -> Unit) {
     val context = LocalContext.current
-    val selected = remember { AppLanguage.selected(context) }
+    // MainActivity handles locale changes in place, so re-read the choice when the language changes.
+    val locales = LocalConfiguration.current.locales
+    val selected = remember(locales) { AppLanguage.selected(context) }
     // null is "follow the phone"; each language is named in itself so it can be found from any.
     val choices = remember { listOf<String?>(null) + AppLanguage.supported }
     val current = stringResource(R.string.language_current)
@@ -43,10 +46,11 @@ internal fun LanguageScreen(back: () -> Unit) {
     }
 }
 
-/** The Settings row value: the chosen language's own name, or "Phone language". */
+/** The Settings row value: the chosen language's own name, or nothing while it follows the phone. */
 @Composable
-internal fun languageSummary(): String {
+internal fun languageSummary(): String? {
     val context = LocalContext.current
-    val selected = remember { AppLanguage.selected(context) }
-    return selected?.let(AppLanguage::nativeName) ?: stringResource(R.string.language_system)
+    val locales = LocalConfiguration.current.locales
+    val selected = remember(locales) { AppLanguage.selected(context) }
+    return selected?.let(AppLanguage::nativeName)
 }

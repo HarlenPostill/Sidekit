@@ -12,10 +12,13 @@ import java.util.Locale
 /**
  * Sidekit's own language, chosen in Settings → Language independently of the phone's language.
  *
- * Android 13+ (API 33) keeps a per-app language itself: [select] hands it to [LocaleManager], the
- * system restarts the activity in that language and the choice also shows under the phone's
- * Settings → Apps → Sidekit → Language. Android 12 has no per-app language, so the choice is
- * stored in Sidekit's preferences and [wrap] applies it to the activity's context.
+ * Android 13+ (API 33) keeps a per-app language itself: [select] hands it to [LocaleManager], and
+ * the choice also shows under the phone's Settings → Apps → Sidekit → Language. MainActivity
+ * handles `locale` configuration changes itself, so Compose redraws in the new language in place;
+ * read strings with `stringResource` or `LocalResources`, not `LocalContext`, so they follow it. Android 12 has no per-app language, so the choice is
+ * stored in Sidekit's preferences and [wrap] applies it to the activities' and the application's
+ * contexts. There, text resolved through the application context (notifications, services)
+ * switches language the next time Sidekit's process starts.
  *
  * Strings live in the `strings_<area>.xml` files under `res/values` and its translated
  * `res/values-<lang>` folders; docs/localisation.md describes adding a string or a language.
@@ -46,7 +49,7 @@ object AppLanguage {
     fun select(activity: Activity, tag: String?) {
         if (tag == selected(activity)) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // The system recreates the activity with the new configuration.
+            // Delivered to the running activity as a configuration change.
             activity.getSystemService(LocaleManager::class.java)?.applicationLocales =
                 tag?.let(LocaleList::forLanguageTags) ?: LocaleList.getEmptyLocaleList()
         } else {

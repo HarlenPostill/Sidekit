@@ -11,10 +11,13 @@ a folder of translations and no code.
 applies the choice:
 
 - **Android 13 and later** use the system's per-app language (`LocaleManager`). The choice also
-  appears under the phone's *Settings → Apps → Sidekit → Language*, and the system restarts the
-  activity in the new language.
-- **Android 12** has no per-app language. The choice is saved in Sidekit's preferences and
-  `MainActivity.attachBaseContext` applies it, then the activity is recreated.
+  appears under the phone's *Settings → Apps → Sidekit → Language*. `MainActivity` handles
+  `locale` configuration changes itself, so the screen redraws in the new language without a
+  restart.
+- **Android 12** has no per-app language. The choice is saved in Sidekit's preferences, the
+  activity is recreated, and `attachBaseContext` in `MainActivity`, `RingingActivity` and
+  `SidekitApplication` applies it. Text resolved through the application context (notifications,
+  services) switches language the next time Sidekit's process starts.
 
 `generateLocaleConfig` in `app/build.gradle.kts` builds the system's list of languages from the
 `res/values-<lang>` folders. `res/resources.properties` says the untranslated `values/` folder is
@@ -33,14 +36,18 @@ Each area of the app has its own file, so two changes to different apps never to
 | `sidekit` (design library) | `sidekit/src/main/res/values/strings_sidekit.xml` | `sidekit/src/main/res/values-<lang>/…` |
 | `sidekit-sdk` | `sidekit-sdk/src/main/res/values/strings_sdk.xml` | `sidekit-sdk/src/main/res/values-<lang>/…` |
 
-Names start with the area (`mail_`, `weather_`, `sidekit_`, `sdk_`) because every module's strings
-merge into one `R.string` namespace. A translation file has the same name and the same keys as the
+Names start with the area (`mail_`, `weather_`) because every module's strings merge into one
+`R.string` namespace. The library modules also require the `sk_` resource prefix, so their names
+start `sk_sidekit_` and `sk_sdk_`. A translation file has the same name and the same keys as the
 English one.
 
 ## Writing a string
 
 - In a composable, use `stringResource(R.string.mail_inbox)`, `stringResource(R.string.x, arg)` and
-  `pluralStringResource(R.plurals.x, count, count)`.
+  `pluralStringResource(R.plurals.x, count, count)`. For text resolved later in a click handler or
+  coroutine, read `LocalResources.current` rather than `LocalContext.current.getString`, and the
+  locale from `LocalConfiguration.current.locales[0]`: both follow a language change, which
+  lint's `LocalContextGetResourceValueCall` and `NonObservableLocale` checks enforce.
 - Outside composition (view models, services, notifications, workers), use
   `context.getString(…)` or `resources.getQuantityString(…)`. A model that is built without a
   `Context` holds an `@StringRes Int` and the UI resolves it.
