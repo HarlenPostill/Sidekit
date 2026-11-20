@@ -34,6 +34,7 @@
     <string name="mail_empty_sent">Nada enviado</string>
     <plurals name="mail_folder_count">
         <item quantity="one">%1$d en este teléfono</item>
+        <item quantity="many">%1$d en este teléfono</item>
         <item quantity="other">%1$d en este teléfono</item>
     </plurals>
     <string name="mail_notice_not_ready">Correo no está listo. Tu borrador no se ha guardado</string>

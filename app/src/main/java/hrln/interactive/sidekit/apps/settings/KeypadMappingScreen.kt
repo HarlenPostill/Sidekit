@@ -2,6 +2,7 @@ package hrln.interactive.sidekit.apps.settings
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
@@ -29,7 +30,7 @@ internal fun NavGraphBuilder.keypadMappingGraph(nav: NavHostController) {
     }
     composable(LEARN) { entry ->
         val module = KeypadModule.entries.firstOrNull { it.name == entry.arguments?.getString("module") }
-        val control = module?.let { m -> entry.arguments?.getString("code")?.toIntOrNull()?.let { KeypadControls.find(m, it, LocalContext.current.resources) } }
+        val control = module?.let { m -> entry.arguments?.getString("code")?.toIntOrNull()?.let { KeypadControls.find(m, it, LocalResources.current) } }
         if (module == null || control == null) {
             LaunchedEffect(Unit) { nav.popBackStack() }
             return@composable

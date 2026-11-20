@@ -36,6 +36,7 @@
     <string name="files_media_music">Musique</string>
     <plurals name="files_count">
         <item quantity="one">%1$d fichier</item>
+        <item quantity="many">%1$d fichiers</item>
         <item quantity="other">%1$d fichiers</item>
     </plurals>
     <string name="files_size_bytes">%1$s o</string>

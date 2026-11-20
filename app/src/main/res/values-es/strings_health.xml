@@ -15,10 +15,12 @@
     <string name="health_no_samples">Aún no hay datos</string>
     <plurals name="health_day_steps">
         <item quantity="one">%1$d paso</item>
+        <item quantity="many">%1$d pasos</item>
         <item quantity="other">%1$d pasos</item>
     </plurals>
     <plurals name="health_day_steps_approx">
         <item quantity="one">%1$d paso · aprox.</item>
+        <item quantity="many">%1$d pasos · aprox.</item>
         <item quantity="other">%1$d pasos · aprox.</item>
     </plurals>
     <string name="health_no_step_counter">Este dispositivo no tiene podómetro</string>

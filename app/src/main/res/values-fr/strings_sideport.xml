@@ -90,10 +90,12 @@
     <string name="sideport_inspect_generic">aucune (générique)</string>
     <plurals name="sideport_inspect_nodes">
         <item quantity="one">%d nœud</item>
+        <item quantity="many">%d nœuds</item>
         <item quantity="other">%d nœuds</item>
     </plurals>
     <plurals name="sideport_inspect_unlabelled">
         <item quantity="one">%d bouton sans libellé</item>
+        <item quantity="many">%d boutons sans libellé</item>
         <item quantity="other">%d boutons sans libellé</item>
     </plurals>
     <string name="sideport_show_in_sidekit">Afficher %1$s dans Sidekit</string>

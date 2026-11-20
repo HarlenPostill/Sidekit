@@ -20,6 +20,7 @@
     <string name="translate_microphone_rationale">Autorisez le micro pour que Traduction puisse entendre cette langue.</string>
     <plurals name="translate_service">
         <item quantity="one">En ligne · MyMemory · %1$d caractère</item>
+        <item quantity="many">En ligne · MyMemory · %1$d caractères</item>
         <item quantity="other">En ligne · MyMemory · %1$d caractères</item>
     </plurals>
     <string name="translate_change_language">Changer de langue</string>

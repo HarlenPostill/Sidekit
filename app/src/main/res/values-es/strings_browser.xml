@@ -25,6 +25,7 @@
     <string name="browser_page">Página</string>
     <plurals name="browser_tab_count">
         <item quantity="one">%1$d pestaña</item>
+        <item quantity="many">%1$d pestañas</item>
         <item quantity="other">%1$d pestañas</item>
     </plurals>
     <string name="browser_close_tab">Cerrar %1$s</string>

@@ -34,6 +34,7 @@
     <string name="mail_empty_sent">Rien d\'envoyé</string>
     <plurals name="mail_folder_count">
         <item quantity="one">%1$d sur ce téléphone</item>
+        <item quantity="many">%1$d sur ce téléphone</item>
         <item quantity="other">%1$d sur ce téléphone</item>
     </plurals>
     <string name="mail_notice_not_ready">Mail n\'est pas prêt. Votre brouillon n\'a pas été enregistré</string>

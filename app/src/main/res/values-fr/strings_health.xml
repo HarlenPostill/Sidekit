@@ -15,10 +15,12 @@
     <string name="health_no_samples">Aucune mesure pour l\'instant</string>
     <plurals name="health_day_steps">
         <item quantity="one">%1$d pas</item>
+        <item quantity="many">%1$d pas</item>
         <item quantity="other">%1$d pas</item>
     </plurals>
     <plurals name="health_day_steps_approx">
         <item quantity="one">%1$d pas · env.</item>
+        <item quantity="many">%1$d pas · env.</item>
         <item quantity="other">%1$d pas · env.</item>
     </plurals>
     <string name="health_no_step_counter">Aucun podomètre sur cet appareil</string>

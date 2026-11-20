@@ -156,7 +156,7 @@ private fun AboutScreen(back: () -> Unit) {
     // The name comes from resources, so the dev build says "SideKit Dev" instead of the stable
     // name, and names itself and its package on its own row.
     val appName = stringResource(R.string.app_name)
-    val devBuild = context.resources.getBoolean(R.bool.is_dev_build)
+    val devBuild = LocalResources.current.getBoolean(R.bool.is_dev_build)
     var rows by remember {
         mutableStateOf(
             listOf(

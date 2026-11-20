@@ -11,6 +11,7 @@
     <string name="photos_untitled">Sin título</string>
     <plurals name="photos_items">
         <item quantity="one">%1$d elemento</item>
+        <item quantity="many">%1$d elementos</item>
         <item quantity="other">%1$d elementos</item>
     </plurals>
     <string name="photos_empty">Aún no hay fotos</string>

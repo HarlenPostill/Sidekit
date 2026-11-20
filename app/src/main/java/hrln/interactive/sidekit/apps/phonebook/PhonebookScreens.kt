@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -240,7 +241,7 @@ fun RecentsScreen(
                 val missed = row.call.type == CallType.Missed || row.call.type == CallType.Rejected
                 SidekitItem(
                     title = row.name ?: PhoneFormat.format(row.call.number, region).ifEmpty { unknown },
-                    secondary = CallTime.describe(context.resources, row.call, now, DateFormat.is24HourFormat(context)),
+                    secondary = CallTime.describe(LocalResources.current, row.call, now, DateFormat.is24HourFormat(context)),
                     colour = if (missed) ItemColour.Destructive else ItemColour.Primary,
                     modifier = Modifier.listFade(listState, i),
                     onClick = { onOpen(row) }
