@@ -42,7 +42,8 @@ fun NavGraphBuilder.settingsGraph(nav: NavHostController) {
             onHiddenApps = { nav.navigate("${SubApp.Settings.route}/hidden-apps") },
             onSystem = { nav.navigate("${SubApp.Settings.route}/system") },
             onKeyboard = { nav.navigate(keyboardSettingsRoute()) },
-            onArrange = { nav.navigate("${SubApp.Settings.route}/arrange") }
+            onArrange = { nav.navigate("${SubApp.Settings.route}/arrange") },
+            onLanguage = { nav.navigate("${SubApp.Settings.route}/language") }
         )
     }
     keyboardSettingsGraph(nav)
@@ -52,11 +53,12 @@ fun NavGraphBuilder.settingsGraph(nav: NavHostController) {
     composable("${SubApp.Settings.route}/setup") { OnboardingScreen(onFinish = { nav.popBackStack() }, replay = true) }
     composable("${SubApp.Settings.route}/case-colour") { CaseColourScreen { nav.popBackStack() } }
     composable("${SubApp.Settings.route}/arrange") { ArrangeHomeScreen { nav.popBackStack() } }
+    composable("${SubApp.Settings.route}/language") { LanguageScreen { nav.popBackStack() } }
     composable("${SubApp.Settings.route}/about") { AboutScreen { nav.popBackStack() } }
 }
 
 @Composable
-internal fun SettingsHome(onHome: () -> Unit, onAbout: () -> Unit, onCaseColour: () -> Unit = {}, onSetup: () -> Unit = {}, onHiddenApps: () -> Unit = {}, onSystem: () -> Unit = {}, onKeyboard: () -> Unit = {}, onArrange: () -> Unit = {}) {
+internal fun SettingsHome(onHome: () -> Unit, onAbout: () -> Unit, onCaseColour: () -> Unit = {}, onSetup: () -> Unit = {}, onHiddenApps: () -> Unit = {}, onSystem: () -> Unit = {}, onKeyboard: () -> Unit = {}, onArrange: () -> Unit = {}, onLanguage: () -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember { SidekitPreferences(context) }
     val caseColour = rememberCaseColour(prefs)
@@ -101,6 +103,7 @@ internal fun SettingsHome(onHome: () -> Unit, onAbout: () -> Unit, onCaseColour:
             item { SidekitItem("Case colour", Modifier.listFade(list, 4), secondary = caseColour?.label ?: "Original blue", showLinkArrow = true, onClick = onCaseColour) }
             // All keypad preferences live together on the Keyboard page, with a separate key guide.
             item { SidekitItem("Keyboard", Modifier.listFade(list, 5), showLinkArrow = true, onClick = onKeyboard) }
+            item { SidekitItem(stringResource(R.string.language_title), secondary = languageSummary(), showLinkArrow = true, onClick = onLanguage) }
             item { SidekitItem("Hide apps", showLinkArrow = true, onClick = onHiddenApps) }
             // Device settings live on their own page, so this screen stays Sidekit's own settings.
             item { SidekitItem("System settings", showLinkArrow = true, onClick = onSystem) }

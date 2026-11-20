@@ -68,6 +68,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    // Lists the res/values-<lang> folders in the manifest's localeConfig, so Android 13+ offers
+    // Sidekit's languages under Settings → Apps → Sidekit → Language. The untranslated folder's
+    // language is set in res/resources.properties.
+    androidResources {
+        generateLocaleConfig = true
+    }
     packaging { resources.merges += setOf("META-INF/NOTICE.md", "META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.txt") }
     buildFeatures {
         compose = true
