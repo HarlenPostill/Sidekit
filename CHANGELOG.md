@@ -1,5 +1,40 @@
 # Changelog
 
+## v1.3.0 — 2026-11-26
+
+Changes since [v1.2.3](https://github.com/HarlenPostill/Sidekit/releases/tag/v1.2.3):
+
+### New features
+
+- **Hide the Sidekit button over original apps:** an app opened as Original in Sideport no longer has to show the floating Sidekit button, which could cover its own controls (Spotify's player bar, for example). Hold the app in Sideport and set **Sidekit button** to Off. **Open as** still brings the projection back. [#63](https://github.com/HarlenPostill/Sidekit/pull/63), fixes [#62](https://github.com/HarlenPostill/Sidekit/issues/62)
+- **German, Spanish and French:** every screen is translated. **Settings → Language** chooses Phone language or a shipped language, and on Android 13+ the choice also appears in the phone's per-app language settings. [#59](https://github.com/HarlenPostill/Sidekit/pull/59)
+- **Sidekit SDK:** third-party apps can use Sidekit's design system, keypad handling and configuration. The design library and host SDK are published as a Maven repository. [#52](https://github.com/HarlenPostill/Sidekit/pull/52), [#54](https://github.com/HarlenPostill/Sidekit/pull/54), [#58](https://github.com/HarlenPostill/Sidekit/pull/58)
+- **Pin installed apps to the home screen:** pin any app from the Apps list so it opens straight from the launcher, with its own page. [#53](https://github.com/HarlenPostill/Sidekit/pull/53)
+- **Sundial keypad:** the Sundial module is recognised, and its physical ring and hold actions work. [#44](https://github.com/HarlenPostill/Sidekit/pull/44)
+- **Dictation from the keypad:** while typing on the keypad, the typing bar has a mic that inserts one spoken phrase at the cursor. [#35](https://github.com/HarlenPostill/Sidekit/pull/35)
+- **Translate language lists:** each language row opens a full Translate from/to list, and picking the other side's language swaps the pair. [#50](https://github.com/HarlenPostill/Sidekit/pull/50)
+- **Sideweather shows your town:** Locate names the place, for example *Current location · Sydney*. [#34](https://github.com/HarlenPostill/Sidekit/pull/34)
+- **Compact layout:** a setting that trims the header and action bar to fit more on screen. [#30](https://github.com/HarlenPostill/Sidekit/pull/30)
+- **Full-screen canvas:** Sidekit fills screens of any shape instead of letterboxing a fixed 480 × 640 frame. The Sidephone looks the same as before. [#33](https://github.com/HarlenPostill/Sidekit/pull/33)
+
+### Fixes and polish
+
+- **Action bar:** placement and tones are the same in every app. The left slot exits or holds the primary action, and the right slot commits or offers Undo. [#55](https://github.com/HarlenPostill/Sidekit/pull/55)
+- **D-pad focus:** Up leaves the action bar again, and screens no longer trap focus. [#41](https://github.com/HarlenPostill/Sidekit/pull/41)
+- **Screen titles:** a title stays in place while it changes, and no longer bounces or draws over the launcher clock. [#39](https://github.com/HarlenPostill/Sidekit/pull/39), [#40](https://github.com/HarlenPostill/Sidekit/pull/40)
+- **Arrange apps:** clearer keypad hints, and Reset moves to Options. [#48](https://github.com/HarlenPostill/Sidekit/pull/48)
+- **Launcher:** the Apps tile has its own icon, and home search matches T9 the same way as the Apps list. [#47](https://github.com/HarlenPostill/Sidekit/pull/47)
+- **Sideport:** Sidekit builds can't be ported into Sideport, and the Apps and Add app screens share one row style. [#29](https://github.com/HarlenPostill/Sidekit/pull/29)
+
+### For developers
+
+- GitHub Actions CI: build, unit tests, lint, formatting, secret scan and CodeQL. [#27](https://github.com/HarlenPostill/Sidekit/pull/27)
+- versionName comes from the git tag and versionCode from the commit count. [#28](https://github.com/HarlenPostill/Sidekit/pull/28)
+- Kotlin 2.4.21, Gradle 9.7.0 and AndroidX updates. [#56](https://github.com/HarlenPostill/Sidekit/pull/56)
+- MIT license and a README. [#32](https://github.com/HarlenPostill/Sidekit/pull/32), [#51](https://github.com/HarlenPostill/Sidekit/pull/51)
+
+The GB/GBC/GBA emulator from earlier releases is still included.
+
 ## v1.2.3 — 2026-11-07
 
 Changes since [v1.2.2](https://github.com/HarlenPostill/Sidekit/releases/tag/v1.2.2):

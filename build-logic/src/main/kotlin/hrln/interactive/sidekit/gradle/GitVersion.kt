@@ -10,8 +10,8 @@ import org.gradle.api.Project
  * A checkout without git (exported source, a CI tarball) falls back to the last release.
  */
 object GitVersion {
-    private const val FALLBACK_NAME = "1.2.3"
-    private const val FALLBACK_CODE = 6
+    private const val FALLBACK_NAME = "1.3.0"
+    private const val FALLBACK_CODE = 272
     private val RELEASE = Regex("""^\d+\.\d+\.\d+""")
 
     fun name(project: Project): String = runCatching {
