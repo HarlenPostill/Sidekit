@@ -43,6 +43,7 @@ enum class SubApp(val label: String, @StringRes val labelRes: Int, val icon: Sid
     Calendar("Calendar", R.string.shell_app_calendar, SidekitIcon.CalendarMonth),
     Compass("Compass", R.string.shell_app_compass, SidekitIcon.Explore),
     Health("Health", R.string.shell_app_health, SidekitIcon.EcgHeart),
+    Emulator("Emulator", R.string.shell_app_emulator, SidekitIcon.SmartDisplay),
     Sideport("Sideport", R.string.shell_app_sideport, SidekitIcon.DeployedCode)
     ;
 

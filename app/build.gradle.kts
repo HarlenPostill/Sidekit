@@ -13,6 +13,8 @@ val sidekitVersionName: String by extra
 val sidekitVersionCode: Int by extra
 
 android {
+    ndkVersion = "27.1.12297006"
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
     namespace = "hrln.interactive.sidekit"
     compileSdk {
         version = release(37)

@@ -85,6 +85,7 @@ fun SidekitNavHost(
                 onOpenNative = { app -> app.launch(context) }
             )
         }
+        composable(SubApp.Emulator.route) { hrln.interactive.sidekit.apps.emulator.EmulatorLibrary { navController.popBackStack() } }
         // Core SideKit apps
         sidemessageGraph(navController)
         sidenotesGraph(navController)

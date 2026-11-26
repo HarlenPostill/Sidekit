@@ -22,6 +22,7 @@
     <string name="shell_app_calendar">Kalender</string>
     <string name="shell_app_compass">Kompass</string>
     <string name="shell_app_health">Gesundheit</string>
+    <string name="shell_app_emulator">Emulator</string>
     <string name="shell_home">Start</string>
     <!-- Launcher. -->
     <string name="launcher_search_hint">Apps suchen</string>

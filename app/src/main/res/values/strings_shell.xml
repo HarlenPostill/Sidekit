@@ -27,6 +27,7 @@
     <string name="shell_app_calendar">Calendar</string>
     <string name="shell_app_compass">Compass</string>
     <string name="shell_app_health">Health</string>
+    <string name="shell_app_emulator">Emulator</string>
     <!-- Back-button label that returns to the launcher. -->
     <string name="shell_home">Home</string>
     <!-- Launcher. -->

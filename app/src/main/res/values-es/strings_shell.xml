@@ -22,6 +22,7 @@
     <string name="shell_app_calendar">Calendario</string>
     <string name="shell_app_compass">Brújula</string>
     <string name="shell_app_health">Salud</string>
+    <string name="shell_app_emulator">Emulador</string>
     <string name="shell_home">Inicio</string>
     <!-- Launcher. -->
     <string name="launcher_search_hint">Buscar apps</string>
