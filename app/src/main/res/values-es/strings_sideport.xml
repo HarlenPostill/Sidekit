@@ -99,4 +99,5 @@
         <item quantity="other">%d botones sin etiqueta</item>
     </plurals>
     <string name="sideport_show_in_sidekit">Mostrar %1$s en Sidekit</string>
+    <string name="sideport_sidekit_button">Botón de Sidekit</string>
 </resources>

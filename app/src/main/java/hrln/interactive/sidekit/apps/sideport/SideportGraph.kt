@@ -353,6 +353,7 @@ internal fun SideportHubScreen(pkg: String, onBack: () -> Unit, onChat: (String)
         onBridge = { context.openSettings(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) },
         onInfo = { context.openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$pkg".toUri()) },
         onMode = { ported.setMode(pkg, if (app.mode == PortMode.Projected) PortMode.Original else PortMode.Projected) },
+        onButton = { ported.setShowButton(pkg, !app.showButton) },
         onDismissMessage = { message = null },
         onAsk = { confirming = it },
         onCancel = { confirming = null },
@@ -380,6 +381,7 @@ internal fun SideportHubContent(
     onBridge: () -> Unit,
     onInfo: () -> Unit,
     onMode: () -> Unit,
+    onButton: () -> Unit,
     onDismissMessage: () -> Unit,
     onAsk: (HubRemoval) -> Unit,
     onCancel: () -> Unit,
@@ -440,6 +442,19 @@ internal fun SideportHubContent(
                         secondary = if (app.mode == PortMode.Projected) "Sideport" else stringResource(R.string.sideport_original),
                         onClick = onMode
                     )
+                }
+                // The floating button can cover the app's own controls (a player's bottom bar), so it
+                // can be turned off; Open as then brings the projection back.
+                if (app.mode == PortMode.Original) {
+                    val button = index++
+                    item(key = "button") {
+                        SidekitItem(
+                            stringResource(R.string.sideport_sidekit_button),
+                            Modifier.height(CompactRowHeight).listFade(list, button),
+                            secondary = stringResource(if (app.showButton) R.string.sideport_on else R.string.sideport_off),
+                            onClick = onButton
+                        )
+                    }
                 }
             }
             if (state.mediaTitle != null) {
