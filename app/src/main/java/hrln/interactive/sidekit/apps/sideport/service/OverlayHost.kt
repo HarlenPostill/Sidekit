@@ -48,7 +48,8 @@ import kotlinx.coroutines.cancel
  * the screen has text fields, so typing (T9 or the soft keyboard) lands in Sidekit's fields.
  *
  * Compose needs the owners an activity normally provides; this window provides them itself.
- * [PortMode.Original] swaps the full window for a small "Sidekit" pill over the real app.
+ * [PortMode.Original] swaps the full window for a small "Sidekit" pill over the real app, or for
+ * nothing when the user turned that button off.
  */
 class OverlayHost(private val context: Context, private val controller: ProjectionController) :
     LifecycleOwner,
@@ -175,7 +176,7 @@ class OverlayHost(private val context: Context, private val controller: Projecti
     }
 
     private fun addPill() {
-        if (pill != null) return
+        if (pill != null || !controller.state.app.showButton) return
         val compose = composeView().apply {
             setContent { SidekitTheme { OriginalPill(controller.state.app.label) { controller.showProjection() } } }
         }

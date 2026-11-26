@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Process
 import androidx.test.core.app.ApplicationProvider
 import hrln.interactive.sidekit.apps.apps.LaunchableApp
+import hrln.interactive.sidekit.apps.sideport.registry.PortMode
 import hrln.interactive.sidekit.apps.sideport.registry.PortedApp
 import hrln.interactive.sidekit.apps.sideport.registry.PortedApps
 import org.junit.Assert.assertEquals
@@ -62,5 +63,18 @@ class SideportAddTest {
             """[{"package":"hrln.interactive.sidekit.dev","label":"Sidekit dev","mode":"Projected","added":1}]"""
         ).commit()
         assertEquals(emptyList<PortedApp>(), PortedApps(prefs).apps.value)
+    }
+
+    @Test fun `the Sidekit button setting is saved and defaults to on for older entries`() {
+        prefs.edit().putString(
+            "apps",
+            """[{"package":"com.example.music","label":"Music","mode":"Original","added":1}]"""
+        ).commit()
+        val ported = PortedApps(prefs)
+        assertEquals(true, ported.get("com.example.music")!!.showButton)
+        ported.setShowButton("com.example.music", false)
+        val reread = PortedApps(prefs).get("com.example.music")!!
+        assertEquals(false, reread.showButton)
+        assertEquals(PortMode.Original, reread.mode)
     }
 }

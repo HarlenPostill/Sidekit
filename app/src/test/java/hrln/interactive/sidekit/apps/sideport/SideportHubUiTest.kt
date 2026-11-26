@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import hrln.interactive.sidekit.apps.sideport.bridge.BridgeMessage
 import hrln.interactive.sidekit.apps.sideport.bridge.Conversation
+import hrln.interactive.sidekit.apps.sideport.registry.PortMode
 import hrln.interactive.sidekit.apps.sideport.registry.PortedApp
 import hrln.interactive.sidekit.design.action.ChromeState
 import hrln.interactive.sidekit.design.action.LocalChrome
@@ -54,6 +55,7 @@ class SideportHubUiTest {
                     onBridge = { calls += "bridge" },
                     onInfo = { calls += "info" },
                     onMode = { calls += "mode" },
+                    onButton = { calls += "button" },
                     onDismissMessage = { ui = ui.copy(message = null) },
                     onAsk = { ui = ui.copy(confirming = it) },
                     onCancel = { ui = ui.copy(confirming = null) },
@@ -78,6 +80,19 @@ class SideportHubUiTest {
         compose.onNodeWithText("Uninstall app").assertDoesNotExist()
         compose.onNodeWithText("App info").performClick()
         assertEquals(listOf("info"), calls)
+    }
+
+    @Test fun `an app opened as Original can turn off its Sidekit button`() {
+        show(installed().copy(app = app.copy(mode = PortMode.Original)))
+        compose.onNodeWithText("Sidekit button").assertExists()
+        compose.onNodeWithText("On").assertExists()
+        compose.onNodeWithText("Sidekit button").performClick()
+        assertEquals(listOf("button"), calls)
+    }
+
+    @Test fun `the Sidekit button row only shows for Original`() {
+        show(installed())
+        compose.onNodeWithText("Sidekit button").assertDoesNotExist()
     }
 
     @Test fun `a message replaces the bar and dismisses on tap`() {

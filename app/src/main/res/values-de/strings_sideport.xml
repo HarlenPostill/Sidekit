@@ -97,4 +97,5 @@
         <item quantity="other">%d Tasten ohne Beschriftung</item>
     </plurals>
     <string name="sideport_show_in_sidekit">%1$s in Sidekit zeigen</string>
+    <string name="sideport_sidekit_button">Sidekit-Taste</string>
 </resources>

@@ -18,8 +18,18 @@ enum class PortMode {
     Original
 }
 
-/** An Android app the user has turned into a Sidekit app. */
-data class PortedApp(val packageName: String, val label: String, val mode: PortMode = PortMode.Projected, val addedAt: Long = 0L)
+/**
+ * An Android app the user has turned into a Sidekit app. [showButton] is whether the small
+ * "Sidekit" button floats over the app in [PortMode.Original]; with it off, the app is left
+ * untouched and the hub's Open as row brings back the projection.
+ */
+data class PortedApp(
+    val packageName: String,
+    val label: String,
+    val mode: PortMode = PortMode.Projected,
+    val addedAt: Long = 0L,
+    val showButton: Boolean = true
+)
 
 /**
  * The apps added to Sideport, persisted in shared preferences. One process-wide instance so the
@@ -41,7 +51,11 @@ class PortedApps internal constructor(private val prefs: SharedPreferences) {
 
     fun remove(packageName: String) = write(_apps.value.filterNot { it.packageName == packageName })
 
-    fun setMode(packageName: String, mode: PortMode) = write(_apps.value.map { if (it.packageName == packageName) it.copy(mode = mode) else it })
+    fun setMode(packageName: String, mode: PortMode) = update(packageName) { it.copy(mode = mode) }
+
+    fun setShowButton(packageName: String, show: Boolean) = update(packageName) { it.copy(showButton = show) }
+
+    private fun update(packageName: String, change: (PortedApp) -> PortedApp) = write(_apps.value.map { if (it.packageName == packageName) change(it) else it })
 
     private fun write(list: List<PortedApp>) {
         // Sidekit builds are never Sideport apps, including entries saved by an earlier version.
@@ -50,7 +64,7 @@ class PortedApps internal constructor(private val prefs: SharedPreferences) {
         _apps.value = sorted
         val array = JSONArray()
         sorted.forEach {
-            array.put(JSONObject().put("package", it.packageName).put("label", it.label).put("mode", it.mode.name).put("added", it.addedAt))
+            array.put(JSONObject().put("package", it.packageName).put("label", it.label).put("mode", it.mode.name).put("added", it.addedAt).put("button", it.showButton))
         }
         prefs.edit().putString(KEY, array.toString()).apply()
     }
@@ -63,7 +77,8 @@ class PortedApps internal constructor(private val prefs: SharedPreferences) {
                 packageName = o.getString("package"),
                 label = o.getString("label"),
                 mode = runCatching { PortMode.valueOf(o.optString("mode")) }.getOrDefault(PortMode.Projected),
-                addedAt = o.optLong("added")
+                addedAt = o.optLong("added"),
+                showButton = o.optBoolean("button", true)
             )
         }.filterNot { SidekitBuild.isSidekit(it.packageName) }
     }.getOrDefault(emptyList())

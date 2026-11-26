@@ -102,4 +102,6 @@
     </plurals>
     <!-- Accessibility label of the pill over an app in its original design. -->
     <string name="sideport_show_in_sidekit">Show %1$s in Sidekit</string>
+    <!-- The small Sidekit button over an app opened in its original design. -->
+    <string name="sideport_sidekit_button">Sidekit button</string>
 </resources>
